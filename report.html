@@ -63,6 +63,15 @@
             word-wrap: break-word;
             white-space: normal;
         }
+        select.cli-analysis, input.cli-remark-input {
+            width: 100%;
+            padding: 5px;
+            font-size: 0.9rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
@@ -70,7 +79,7 @@
         <div class="loading-spinner"></div>
     </div>
     <div class="report-container">
-        <img src="railway logo.png" alt="Railway Logo" class="logo">
+        <img src="railway Logo.png" alt="Railway Logo" class="logo">
         <h1>SANKET</h1>
         <h3>(SPM Analysis and Navigation KPA Extraction Tool)</h3>
         <h4>(Designed and Developed by Electrical(OP) Bilaspur S.E.C.Railway)</h4>
@@ -179,42 +188,57 @@
                 <h2>Brake Tests</h2>
                 <table class="report-table">
                     <tr>
-                        <th>Test Type</th><th>Start Time</th><th>Speed Reduced</th><th>Time Taken</th><th>End Time</th>
+                        <th>Test Type</th>
+                        <th>Start Time</th>
+                        <th>Speed Reduced</th>
+                        <th>Time Taken</th>
+                        <th>End Time</th>
+                        <th>CLI Remark</th>
                     </tr>
                     <tr>
                         <td>Brake Feel Test (BFT)</td>
-                        <td>${reportData.bftDetails?.time || `Not detected (Speed ${spmConfig.brakeTests[rakeType].bft.minSpeed}-${spmConfig.brakeTests[rakeType].bft.maxSpeed} kmph not reached)`}</td>
-                        <td>${reportData.bftDetails?.time ? `${reportData.bftDetails.startSpeed} kmph to ${reportData.bftDetails.endSpeed} kmph (${reportData.bftDetails.reduction} kmph)` : ''}</td>
-                        <td>${reportData.bftDetails?.time ? `${reportData.bftDetails.timeTaken} sec` : ''}</td>
-                        <td>${reportData.bftDetails?.time ? reportData.bftDetails.endTime : ''}</td>
+                        <td>${reportData.bftDetails?.time || 'BFT not done'}</td>
+                        <td>${reportData.bftDetails?.time ? `${reportData.bftDetails.startSpeed} kmph to ${reportData.bftDetails.endSpeed} kmph (${reportData.bftDetails.reduction} kmph)` : 'N/A'}</td>
+                        <td>${reportData.bftDetails?.time ? `${reportData.bftDetails.timeTaken} sec` : 'N/A'}</td>
+                        <td>${reportData.bftDetails?.time ? reportData.bftDetails.endTime : 'N/A'}</td>
+                        <td><input type="text" id="bftRemark" class="cli-remark-input" placeholder="Enter remark..."></td>
                     </tr>
                     <tr>
                         <td>Brake Power Test (BPT)</td>
-                        <td>${reportData.bptDetails?.time || `Not detected (Speed ${spmConfig.brakeTests[rakeType].bpt.minSpeed}-${spmConfig.brakeTests[rakeType].bpt.maxSpeed} kmph not reached)`}</td>
-                        <td>${reportData.bptDetails?.time ? `${reportData.bptDetails.startSpeed} kmph to ${reportData.bptDetails.endSpeed} kmph (${reportData.bptDetails.reduction} kmph)` : ''}</td>
-                        <td>${reportData.bptDetails?.time ? `${reportData.bptDetails.timeTaken} sec` : ''}</td>
-                        <td>${reportData.bptDetails?.time ? reportData.bptDetails.endTime : ''}</td>
+                        <td>${reportData.bptDetails?.time || 'BPT not done'}</td>
+                        <td>${reportData.bptDetails?.time ? `${reportData.bptDetails.startSpeed} kmph to ${reportData.bptDetails.endSpeed} kmph (${reportData.bptDetails.reduction} kmph)` : 'N/A'}</td>
+                        <td>${reportData.bptDetails?.time ? `${reportData.bptDetails.timeTaken} sec` : 'N/A'}</td>
+                        <td>${reportData.bptDetails?.time ? reportData.bptDetails.endTime : 'N/A'}</td>
+                        <td><input type="text" id="bptRemark" class="cli-remark-input" placeholder="Enter remark..."></td>
                     </tr>
                 </table>
             `;
 
             // Crew Call Analysis
+           const crewCallContent = (reportData.crewCallData && reportData.crewCallData.length > 0)
+                ? reportData.crewCallData.map(row => `
+                    <tr>
+                        <td>${row.designation}</td>
+                        <td>${row.totalDuration}</td>
+                        <td>${row.runDuration}</td>
+                        <td>${row.stopDuration}</td>
+                        <td>${row.maxSpeed}</td>
+                        <td>${row.toNumbers}</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="6" style="text-align:center;">No CUG data provided</td></tr>';
+
             document.getElementById('crew-call').innerHTML = `
                 <h2>Crew Call Analysis</h2>
                 <table class="report-table">
-                    <tr>
-                        <th>Designation</th><th>Total Duration</th><th>Call on Run</th><th>Call on Stop</th><th>Max Speed</th><th>To Mobile Number</th>
-                    </tr>
-                    ${reportData.crewCallData?.map(row => `
+                    <thead>
                         <tr>
-                            <td>${row.designation}</td>
-                            <td>${row.totalDuration}</td>
-                            <td>${row.runDuration}</td>
-                            <td>${row.stopDuration}</td>
-                            <td>${row.maxSpeed}</td>
-                            <td>${row.toNumbers}</td>
+                            <th>Designation</th><th>Total Duration</th><th>Call on Run</th><th>Call on Stop</th><th>Max Speed</th><th>To Mobile Number</th>
                         </tr>
-                    `).join('') || '<tr><td colspan="6">No data available</td></tr>'}
+                    </thead>
+                    <tbody>
+                        ${crewCallContent}
+                    </tbody>
                 </table>
             `;
 
@@ -556,13 +580,16 @@
                 doc.line(margin, y + 2, margin + 40, y + 2);
                 y += 10;
 
-                const colWidthsBrake = { testType: 30, startTime: 40, speedReduced: 40, timeTaken: 25, endTime: 40 };
+                // Column widths update karein
+                const colWidthsBrake = { testType: 30, startTime: 35, speedReduced: 40, timeTaken: 20, endTime: 35, cliRemark: 30 };
                 const totalTableWidthBrake = Object.values(colWidthsBrake).reduce((a, b) => a + b, 0);
-                doc.setFontSize(10);
+                doc.setFontSize(9);
                 doc.setFillColor(0, 51, 102);
                 doc.rect(margin, y, totalTableWidthBrake, 8, 'F');
                 doc.setTextColor(255, 255, 255);
                 doc.setFont('helvetica', 'bold');
+                
+                // Header text update karein
                 let x = margin;
                 doc.text('Test Type', x + 2, y + 6);
                 x += colWidthsBrake.testType;
@@ -573,16 +600,25 @@
                 doc.text('Time Taken', x + 2, y + 6);
                 x += colWidthsBrake.timeTaken;
                 doc.text('End Time', x + 2, y + 6);
+                x += colWidthsBrake.endTime;
+                doc.text('CLI Remark', x + 2, y + 6);
                 y += 8;
 
                 doc.setTextColor(0, 0, 0);
                 doc.setFont('helvetica', 'normal');
+
+                // Input fields se remarks ki value lein
+                const bftRemark = document.getElementById('bftRemark').value || '';
+                const bptRemark = document.getElementById('bptRemark').value || '';
+
+                // Row data mein remarks add karein
                 const bftRowData = reportData.bftDetails?.time
-                    ? ['Brake Feel Test (BFT)', reportData.bftDetails.time, `${reportData.bftDetails.startSpeed} kmph to ${reportData.bftDetails.endSpeed} kmph (${reportData.bftDetails.reduction} kmph)`, `${reportData.bftDetails.timeTaken} sec`, reportData.bftDetails.endTime]
-                    : ['Brake Feel Test (BFT)', `Not detected (Speed ${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bft.minSpeed}-${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bft.maxSpeed} kmph not reached)`, '', '', ''];
-                const bftLines = bftRowData.map((text, idx) => wrapText(text, Object.values(colWidthsBrake)[idx] - 4, 10));
+                    ? ['Brake Feel Test (BFT)', reportData.bftDetails.time, `${reportData.bftDetails.startSpeed} kmph to ${reportData.bftDetails.endSpeed} kmph (${reportData.bftDetails.reduction} kmph)`, `${reportData.bftDetails.timeTaken} sec`, reportData.bftDetails.endTime, bftRemark]
+                    : ['Brake Feel Test (BFT)', 'BFT not done', 'N/A', 'N/A', 'N/A', bftRemark];
+
+                const bftLines = bftRowData.map((text, idx) => wrapText(String(text), Object.values(colWidthsBrake)[idx] - 4, 9));
                 const bftMaxLines = Math.max(...bftLines.map(l => l.length));
-                let rowHeight = bftMaxLines * 8;
+                let rowHeight = bftMaxLines * 6;
                 y = checkPageOverflow(y, rowHeight, 1);
                 doc.setFillColor(220);
                 doc.rect(margin, y, totalTableWidthBrake, rowHeight, 'F');
@@ -590,17 +626,18 @@
                 doc.rect(margin, y, totalTableWidthBrake, rowHeight);
                 x = margin;
                 bftLines.forEach((lines, idx) => {
-                    lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 6 + (lineIdx * 6)));
+                    lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 5 + (lineIdx * 5)));
                     x += Object.values(colWidthsBrake)[idx];
                 });
                 y += rowHeight;
 
                 const bptRowData = reportData.bptDetails?.time
-                    ? ['Brake Power Test (BPT)', reportData.bptDetails.time, `${reportData.bptDetails.startSpeed} kmph to ${reportData.bptDetails.endSpeed} kmph (${reportData.bptDetails.reduction} kmph)`, `${reportData.bptDetails.timeTaken} sec`, reportData.bptDetails.endTime]
-                    : ['Brake Power Test (BPT)', `Not detected (Speed ${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bpt.minSpeed}-${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bpt.maxSpeed} kmph not reached)`, '', '', ''];
-                const bptLines = bptRowData.map((text, idx) => wrapText(text, Object.values(colWidthsBrake)[idx] - 4, 10));
+                    ? ['Brake Power Test (BPT)', reportData.bptDetails.time, `${reportData.bptDetails.startSpeed} kmph to ${reportData.bptDetails.endSpeed} kmph (${reportData.bptDetails.reduction} kmph)`, `${reportData.bptDetails.timeTaken} sec`, reportData.bptDetails.endTime, bptRemark]
+                    : ['Brake Power Test (BPT)', 'BPT not done', 'N/A', 'N/A', 'N/A', bptRemark];
+                
+                const bptLines = bptRowData.map((text, idx) => wrapText(String(text), Object.values(colWidthsBrake)[idx] - 4, 9));
                 const bptMaxLines = Math.max(...bptLines.map(l => l.length));
-                rowHeight = bptMaxLines * 8;
+                rowHeight = bptMaxLines * 6;
                 y = checkPageOverflow(y, rowHeight, 1);
                 doc.setFillColor(240);
                 doc.rect(margin, y, totalTableWidthBrake, rowHeight, 'F');
@@ -608,7 +645,7 @@
                 doc.rect(margin, y, totalTableWidthBrake, rowHeight);
                 x = margin;
                 bptLines.forEach((lines, idx) => {
-                    lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 6 + (lineIdx * 6)));
+                    lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 5 + (lineIdx * 5)));
                     x += Object.values(colWidthsBrake)[idx];
                 });
                 y += 10;
@@ -618,7 +655,7 @@
                     y = margin;
                 }
 
-                doc.setFont('helvetica', 'bold');
+               doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
                 y = checkPageOverflow(y, 10, 2);
@@ -634,39 +671,43 @@
                 doc.rect(margin, y, totalTableWidthCrew, 8, 'F');
                 doc.setTextColor(255, 255, 255);
                 doc.setFont('helvetica', 'bold');
-                x = margin;
-                doc.text('Designation', x + 2, y + 6);
-                x += colWidthsCrew.designation;
-                doc.text('Total Duration', x + 2, y + 6);
-                x += colWidthsCrew.totalDuration;
-                doc.text('Call on Run', x + 2, y + 6);
-                x += colWidthsCrew.runDuration;
-                doc.text('Call on Stop', x + 2, y + 6);
-                x += colWidthsCrew.stopDuration;
-                doc.text('Max Speed', x + 2, y + 6);
-                x += colWidthsCrew.maxSpeed;
-                doc.text('To Mobile Number', x + 2, y + 6);
+                let x_crew = margin;
+                doc.text('Designation', x_crew + 2, y + 6);
+                x_crew += colWidthsCrew.designation;
+                doc.text('Total Duration', x_crew + 2, y + 6);
+                x_crew += colWidthsCrew.totalDuration;
+                doc.text('Call on Run', x_crew + 2, y + 6);
+                x_crew += colWidthsCrew.runDuration;
+                doc.text('Call on Stop', x_crew + 2, y + 6);
+                x_crew += colWidthsCrew.stopDuration;
+                doc.text('Max Speed', x_crew + 2, y + 6);
+                x_crew += colWidthsCrew.maxSpeed;
+                doc.text('To Mobile Number', x_crew + 2, y + 6);
                 y += 8;
 
                 doc.setTextColor(0, 0, 0);
                 doc.setFont('helvetica', 'normal');
-                reportData.crewCallData?.forEach((row, idx) => {
-                    const rowData = [row.designation, row.totalDuration, row.runDuration, row.stopDuration, row.maxSpeed, row.toNumbers];
-                    const lines = rowData.map((text, i) => wrapText(text, Object.values(colWidthsCrew)[i] - 4, 10));
-                    const maxLines = Math.max(...lines.map(l => l.length));
-                    rowHeight = maxLines * 8;
-                    y = checkPageOverflow(y, rowHeight, 2);
-                    doc.setFillColor(idx % 2 === 0 ? 220 : 240);
-                    doc.rect(margin, y, totalTableWidthCrew, rowHeight, 'F');
-                    doc.setDrawColor(150);
-                    doc.rect(margin, y, totalTableWidthCrew, rowHeight);
-                    x = margin;
-                    lines.forEach((lines, i) => {
-                        lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 6 + (lineIdx * 6)));
-                        x += Object.values(colWidthsCrew)[i];
+                if (reportData.crewCallData && reportData.crewCallData.length > 0) {
+                    reportData.crewCallData.forEach((row, idx) => {
+                        const rowData = [row.designation, row.totalDuration, row.runDuration, row.stopDuration, row.maxSpeed, row.toNumbers];
+                        const lines = rowData.map((text, i) => wrapText(String(text), Object.values(colWidthsCrew)[i] - 4, 10));
+                        const maxLines = Math.max(...lines.map(l => l.length));
+                        rowHeight = maxLines * 8;
+                        y = checkPageOverflow(y, rowHeight, 2);
+                        doc.setFillColor(idx % 2 === 0 ? 220 : 240);
+                        doc.rect(margin, y, totalTableWidthCrew, rowHeight, 'F');
+                        x_crew = margin;
+                        lines.forEach((lines, i) => {
+                            lines.forEach((line, lineIdx) => doc.text(line, x_crew + 2, y + 6 + (lineIdx * 6)));
+                            x_crew += Object.values(colWidthsCrew)[i];
+                        });
+                        y += rowHeight;
                     });
-                    y += rowHeight;
-                });
+                } else {
+                    y = checkPageOverflow(y, 8, 2);
+                    doc.text('No CUG data provided', margin + (totalTableWidthCrew / 2), y + 6, { align: 'center' });
+                    y += 8;
+                }
                 y += 10;
 
                 doc.setFont('helvetica', 'bold');

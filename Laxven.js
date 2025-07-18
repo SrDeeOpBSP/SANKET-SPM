@@ -137,23 +137,30 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
         }
 
         // Parse CUG file first and wait for it to complete
-        const cugData = await parseAndProcessCugData(cugFile);
-        console.log("Processed CUG Data inside Laxven.js:", cugData);
+         let cugData = [];
+        if (cugFile) {
+            try {
+                cugData = await parseAndProcessCugData(cugFile);
+                console.log("Processed CUG Data:", cugData);
+            } catch (error) {
+                console.error("Could not process CUG file:", error);
+                alert('Could not process CUG.csv file. Continuing without call analysis.');
+            }
+        } else {
+            console.log("No CUG file uploaded. Skipping call analysis.");
+        }
+
 
         const lpCalls = cugData.filter(call => {
             const matchesNumber = call['CUG MOBILE NO'] === lpCugNumber;
             const withinTime = call.startDateTime >= fromDateTime && call.startDateTime <= toDateTime;
             return matchesNumber && withinTime;
         });
-
         const alpCalls = cugData.filter(call => {
-            const matchesNumber = call['CUG MOBILE NO'] === alpCugNumber;
-            const withinTime = call.startDateTime >= fromDateTime && call.startDateTime <= toDateTime;
-            return matchesNumber && withinTime;
-        });
-
-        console.log('LP Calls found:', lpCalls.length);
-        console.log('ALP Calls found:', alpCalls.length);
+            const matchesNumber = call['CUG MOBILE NO'] === alpCugNumber;
+            const withinTime = call.startDateTime >= fromDateTime && call.startDateTime <= toDateTime;
+            return matchesNumber && withinTime;
+        });
 
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -630,77 +637,96 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
                 console.log('Enhanced Stops:', stops);
 
-                const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
-                    let lowestSpeed = data[startIdx].Speed;
-                    let lowestSpeedIdx = startIdx;
-                    let previousSpeed = data[startIdx].Speed;
-                    const startTime = data[startIdx].Time.getTime();
-                    const speedIncreaseThreshold = 1;
+               const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
+    const startSpeed = data[startIdx].Speed;
+    const startTime = data[startIdx].Time.getTime();
+    let lowestSpeed = startSpeed;
+    let lowestSpeedIdx = startIdx;
 
-                    console.log(`Tracking speed reduction starting at ${data[startIdx].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}, speed: ${data[startIdx].Speed} kmph`);
+    for (let i = startIdx + 1; i < data.length; i++) {
+        const currentSpeed = data[i].Speed;
+        const currentTime = data[i].Time.getTime();
 
-                    for (let i = startIdx + 1; i < data.length; i++) {
-                        const currentTime = data[i].Time.getTime();
-                        const timeDiffMs = currentTime - startTime;
-                        const currentSpeed = data[i].Speed;
+        // Agar time limit cross ho gayi to loop band karein
+        if (currentTime - startTime > maxDurationMs) {
+            break;
+        }
+        
+        // Agar speed thodi si bhi badhne lage to test khatm maana jayega
+        if (currentSpeed > lowestSpeed + 0.5) {
+            break;
+        }
+        
+        // Sabse kam speed ko record karein
+        if (currentSpeed < lowestSpeed) {
+            lowestSpeed = currentSpeed;
+            lowestSpeedIdx = i;
+        }
+    }
+    
+    // Agar speed kam hi nahi hui to use valid test na maane
+    if (lowestSpeedIdx === startIdx) {
+        return null;
+    }
 
-                        console.log(`Index ${i}, Time: ${data[i].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}, Speed: ${currentSpeed}, TimeDiff: ${timeDiffMs}ms`);
+    const endTime = data[lowestSpeedIdx].Time.getTime();
+    return { 
+        index: lowestSpeedIdx, 
+        speed: lowestSpeed, 
+        timeDiff: (endTime - startTime) / 1000 
+    };
+};
 
-                        if (timeDiffMs > maxDurationMs) {
-                            console.log(`Max duration reached. Lowest speed: ${lowestSpeed} at index ${lowestSpeedIdx}`);
-                            return { index: lowestSpeedIdx, speed: lowestSpeed, timeDiff: (data[lowestSpeedIdx].Time.getTime() - startTime) / 1000 };
-                        }
+                let bftDetails = null;
+let bptDetails = null;
+const brakeTestsConfig = spmConfig.brakeTests[rakeType];
 
-                        if (currentSpeed < lowestSpeed) {
-                            lowestSpeed = currentSpeed;
-                            lowestSpeedIdx = i;
-                        }
+for (let i = 0; i < normalizedData.length; i++) {
+    const row = normalizedData[i];
+    const speed = row.Speed;
 
-                        if (currentSpeed > previousSpeed + speedIncreaseThreshold) {
-                            console.log(`Speed increase detected. Lowest speed: ${lowestSpeed} at index ${lowestSpeedIdx}`);
-                            return { index: lowestSpeedIdx, speed: lowestSpeed, timeDiff: (data[lowestSpeedIdx].Time.getTime() - startTime) / 1000 };
-                        }
-
-                        previousSpeed = currentSpeed;
-                    }
-
-                    console.log(`End of data reached. Lowest speed: ${lowestSpeed} at index ${lowestSpeedIdx}`);
-                    return { index: lowestSpeedIdx, speed: lowestSpeed, timeDiff: (data[lowestSpeedIdx].Time.getTime() - startTime) / 1000 };
+    // BFT Check
+    if (!bftDetails && speed >= brakeTestsConfig.bft.minSpeed && speed <= brakeTestsConfig.bft.maxSpeed) {
+        const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bft.maxDuration);
+        if (result && result.timeDiff > 1) {
+            const speedReduction = speed - result.speed;
+            // Naya condition: Speed reduction kam se kam 5 Kmph hona chahiye
+            if (speedReduction >= 5) {
+                bftDetails = {
+                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                    startSpeed: speed.toFixed(2),
+                    endSpeed: result.speed.toFixed(2),
+                    reduction: speedReduction.toFixed(2),
+                    timeTaken: result.timeDiff.toFixed(0),
+                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
                 };
+                console.log('BFT Detected:', bftDetails);
+            }
+        }
+    }
 
-                let bftDetails = { time: null, startSpeed: null, endSpeed: null, reduction: null, timeTaken: null, endTime: null };
-                let bptDetails = { time: null, startSpeed: null, endSpeed: null, reduction: null, timeTaken: null, endTime: null };
+    // BPT Check
+    if (!bptDetails && speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
+         const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bpt.maxDuration);
+         if (result && result.timeDiff > 1) {
+            const speedReduction = speed - result.speed;
+            // Naya condition: Speed reduction kam se kam 5 Kmph hona chahiye
+            if (speedReduction >= 5) {
+                bptDetails = {
+                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                    startSpeed: speed.toFixed(2),
+                    endSpeed: result.speed.toFixed(2),
+                    reduction: speedReduction.toFixed(2),
+                    timeTaken: result.timeDiff.toFixed(0),
+                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                };
+                console.log('BPT Detected:', bptDetails);
+            }
+         }
+    }
 
-                for (let i = 0; i < normalizedData.length; i++) {
-                    const row = normalizedData[i];
-                    const speed = row.Speed;
-                    const brakeTests = spmConfig.brakeTests[rakeType];
-
-                    if (!bftDetails.time && speed >= brakeTests.bft.minSpeed && speed <= brakeTests.bft.maxSpeed) {
-                        bftDetails.time = row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                        bftDetails.startSpeed = speed;
-                        const result = trackSpeedReduction(normalizedData, i, brakeTests.bft.maxDuration);
-                        bftDetails.endSpeed = result.speed;
-                        bftDetails.timeTaken = result.timeDiff.toFixed(0);
-                        bftDetails.endTime = normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                        bftDetails.reduction = (bftDetails.startSpeed - bftDetails.endSpeed).toFixed(2);
-                        console.log('BFT Details:', bftDetails);
-                    }
-
-                    if (!bptDetails.time && speed >= brakeTests.bpt.minSpeed && speed <= brakeTests.bpt.maxSpeed) {
-                        bptDetails.time = row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                        bptDetails.startSpeed = speed;
-                        const result = trackSpeedReduction(normalizedData, i, brakeTests.bpt.maxDuration);
-                        bptDetails.endSpeed = result.speed;
-                        bptDetails.timeTaken = result.timeDiff.toFixed(0);
-                        bptDetails.endTime = normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                        bptDetails.reduction = (bptDetails.startSpeed - bptDetails.endSpeed).toFixed(2);
-                        console.log('BPT Details:', bptDetails);
-                    }
-
-                    if (bftDetails.time && bptDetails.time) break;
-                }
-
+    if (bftDetails && bptDetails) break;
+}
                 // Updated Crew Call Analysis
                 const analyzeCalls = (calls, designation) => {
                     if (!calls || calls.length === 0) {

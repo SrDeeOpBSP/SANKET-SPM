@@ -42,7 +42,7 @@
 </head>
 <body>
     <div class="container">
-        <img src="railway logo.png" alt="Railway Logo" class="logo">
+        <img src="railway Logo.png" alt="Railway Logo" class="logo">
         <h1>SANKET</h1>
         <h3>(SPM Analysis and Navigation KPA Extraction Tool)</h3>
         <h4>(Designed and Developed by Electrical(OP) Bilaspur S.E.C.Railway)</h4>
@@ -195,7 +195,7 @@
                     </div>
                     <div class="form-group">
                         <label for="cugFile">Upload CUG.csv File</label>
-                        <input type="file" id="cugFile" name="cugFile" accept=".csv" required>
+                        <input type="file" id="cugFile" name="cugFile" accept=".csv">
                     </div>
                     <div class="form-group">
                         <label for="spmFile">Upload SPM File</label>
@@ -297,6 +297,10 @@
                 });
 
                 document.getElementById('lpId').addEventListener('input', (e) => {
+                    // Input ko format karne ka code
+                    const input = e.target;
+                    let value = input.value.toUpperCase();
+                    input.value = value.replace(/[^A-Z0-9]/g, '');
                     const lpId = e.target.value.trim();
                     const lpRecord = crewData.find(record => record['CREWID'] === lpId);
                     if (lpRecord) {
@@ -315,6 +319,10 @@
                 });
 
                 document.getElementById('alpId').addEventListener('input', (e) => {
+                    // Input ko format karne ka code
+                    const input = e.target;
+                    let value = input.value.toUpperCase();
+                    input.value = value.replace(/[^A-Z0-9]/g, '');
                     const alpId = e.target.value.trim();
                     const alpRecord = crewData.find(record => record['CREWID'] === alpId);
                     if (alpRecord) {
@@ -410,12 +418,6 @@
                     const spmType = document.getElementById('spmType').value;
                     const spmFile = document.getElementById('spmFile').files[0];
                     const cugFile = document.getElementById('cugFile').files[0];
-
-                    if (!cugFile) {
-                        alert('Please upload a CUG.csv file.');
-                        document.getElementById('loadingOverlay').style.display = 'none';
-                        return;
-                    }
                     if (!spmType) {
                         alert('Please select an SPM Type.');
                         document.getElementById('loadingOverlay').style.display = 'none';
@@ -444,16 +446,6 @@
                         alert(`No script loaded for SPM Type: ${spmType}. Please select SPM Type first.`);
                         document.getElementById('loadingOverlay').style.display = 'none';
                         return;
-                    }
-
-                    try {
-                        const parsedCugData = await parseCugFile(cugFile);
-                        window.cugData = parsedCugData;
-                        console.log('CUG data is parsed and ready. Proceeding with analysis...');
-                    } catch (error) {
-                        alert('Failed to parse CUG.csv file. Please check the file format and content.');
-                        console.error('CUG parsing failed:', error);
-                        document.getElementById('loadingOverlay').style.display = 'none';
                     }
                 });
 
