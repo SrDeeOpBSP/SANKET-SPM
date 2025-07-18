@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPM Analysis Report</title>
+    <link href="report.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .loading-overlay {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .loading-spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #ec0c0c;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: #ff0000;
+            text-align: center;
+            margin: 20px;
+            font-size: 1.2rem;
+        }
+        canvas {
+            max-width: 100%;
+            width: 800px !important;
+            height: 400px !important;
+            margin: 20px auto;
+            display: block;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+        }
+        select.cli-analysis {
+            width: 100%;
+            padding: 5px;
+            font-size: 0.9rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        td.system-analysis {
+            word-wrap: break-word;
+            white-space: normal;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+    <div class="report-container">
+        <img src="railway Logo.png" alt="Railway Logo" class="logo">
+        <h1>SANKET</h1>
+        <h3>(SPM Analysis and Navigation KPA Extraction Tool)</h3>
+        <h4>(Designed and Developed by Electrical(OP) Bilaspur S.E.C.Railway)</h4>
+        <div class="tabs">
+            <button class="tab-button active" data-tab="train-details">Train Details</button>
+            <button class="tab-button" data-tab="crew-details">Crew Details</button>
+            <button class="tab-button" data-tab="brake-tests">Brake Tests</button>
+            <button class="tab-button" data-tab="crew-call">Crew Call Analysis</button>
+            <button class="tab-button" data-tab="driving-analysis">Driving Analysis</button>
+            <button class="tab-button" data-tab="speed-distance">Speed vs. Distance</button>
+            <button class="tab-button" data-tab="station-timings">Station Timings</button>
+            <button class="tab-button" data-tab="speed-time">Speed vs. Time</button>
+            <button class="tab-button" data-tab="violations">Violations</button>
+            <button class="tab-button" data-tab="cli-observation">CLI Observation</button>
+        </div>
+        <div id="reportContent" class="tab-content">
+            <div id="train-details" class="tab-pane active"></div>
+            <div id="crew-details" class="tab-pane"></div>
+            <div id="brake-tests" class="tab-pane"></div>
+            <div id="crew-call" class="tab-pane"></div>
+            <div id="driving-analysis" class="tab-pane"></div>
+            <div id="speed-distance" class="tab-pane"><canvas id="stopChart"></canvas></div>
+            <div id="station-timings" class="tab-pane"></div>
+            <div id="speed-time" class="tab-pane"><canvas id="speedChart"></canvas></div>
+            <div id="violations" class="tab-pane"></div>
+            <div id="cli-observation" class="tab-pane">
+                <h2>CLI Observation</h2>
+                <textarea id="cliRemarks" rows="4" placeholder="Enter CLI remarks here..."></textarea>
+            </div>
+        </div>
+        <button id="downloadReport" class="download-button">Download Report</button>
+        <button id="backToForm" class="back-button">Back to Form</button>
+    </div>
+    <script>
+        // Show loading overlay
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.style.display = 'flex';
+
+        // Load report data
+        let reportData;
+        try {
+            reportData = JSON.parse(localStorage.getItem('spmReportData') || '{}');
+            console.log('Retrieved reportData:', reportData);
+            console.log('Speed Chart Config:', reportData.speedChartConfig);
+            console.log('Stop Chart Config:', reportData.stopChartConfig);
+            console.log('Speed Chart Image:', reportData.speedChartImage ? 'Present' : 'Missing');
+            console.log('Stop Chart Image:', reportData.stopChartImage ? 'Present' : 'Missing');
+        } catch (error) {
+            console.error('Error parsing reportData:', error);
+            reportData = {};
+        }
+
+        // Include spmConfig for brake tests
+        const spmConfig = {
+            brakeTests: {
+                GOODS: { bft: { minSpeed: 20, maxSpeed: 30 }, bpt: { minSpeed: 40, maxSpeed: 50 } },
+                COACHING: { bft: { minSpeed: 20, maxSpeed: 30 }, bpt: { minSpeed: 50, maxSpeed: 60 } },
+                MEMU: { bft: { minSpeed: 20, maxSpeed: 30 }, bpt: { minSpeed: 50, maxSpeed: 60 } }
+            }
+        };
+
+        // Render report
+        function renderReport() {
+            if (!Object.keys(reportData).length) {
+                document.getElementById('reportContent').innerHTML = '<p class="error-message">No report data available. Please return to the form and try again.</p>';
+                loadingOverlay.style.display = 'none';
+                return;
+            }
+
+            console.log('Rendering report with data:', reportData);
+
+            // Train Details
+            document.getElementById('train-details').innerHTML = `
+                <h2>Train Details</h2>
+                <table class="report-table">
+                    <tr><th>Parameters</th><th>Details</th></tr>
+                    ${reportData.trainDetails?.map(detail => `
+                        <tr><td>${detail.label}</td><td>${detail.value}</td></tr>
+                    `).join('') || '<tr><td colspan="2">No data available</td></tr>'}
+                </table>
+            `;
+
+            // Crew Details
+            document.getElementById('crew-details').innerHTML = `
+                <h2>Crew Details</h2>
+                <div class="crew-details-container">
+                    <div>
+                        <h3>LP Details</h3>
+                        <ul>
+                            ${reportData.lpDetails?.map(detail => `<li>${detail}</li>`).join('') || '<li>No data available</li>'}
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>ALP Details</h3>
+                        <ul>
+                            ${reportData.alpDetails?.map(detail => `<li>${detail}</li>`).join('') || '<li>No data available</li>'}
+                        </ul>
+                    </div>
+                </div>
+                <h3>Total Stops: ${reportData.stopCount || 0}</h3>
+            `;
+
+            // Brake Tests
+            const rakeType = reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS';
+            document.getElementById('brake-tests').innerHTML = `
+                <h2>Brake Tests</h2>
+                <table class="report-table">
+                    <tr>
+                        <th>Test Type</th><th>Start Time</th><th>Speed Reduced</th><th>Time Taken</th><th>End Time</th>
+                    </tr>
+                    <tr>
+                        <td>Brake Feel Test (BFT)</td>
+                        <td>${reportData.bftDetails?.time || `Not detected (Speed ${spmConfig.brakeTests[rakeType].bft.minSpeed}-${spmConfig.brakeTests[rakeType].bft.maxSpeed} kmph not reached)`}</td>
+                        <td>${reportData.bftDetails?.time ? `${reportData.bftDetails.startSpeed} kmph to ${reportData.bftDetails.endSpeed} kmph (${reportData.bftDetails.reduction} kmph)` : ''}</td>
+                        <td>${reportData.bftDetails?.time ? `${reportData.bftDetails.timeTaken} sec` : ''}</td>
+                        <td>${reportData.bftDetails?.time ? reportData.bftDetails.endTime : ''}</td>
+                    </tr>
+                    <tr>
+                        <td>Brake Power Test (BPT)</td>
+                        <td>${reportData.bptDetails?.time || `Not detected (Speed ${spmConfig.brakeTests[rakeType].bpt.minSpeed}-${spmConfig.brakeTests[rakeType].bpt.maxSpeed} kmph not reached)`}</td>
+                        <td>${reportData.bptDetails?.time ? `${reportData.bptDetails.startSpeed} kmph to ${reportData.bptDetails.endSpeed} kmph (${reportData.bptDetails.reduction} kmph)` : ''}</td>
+                        <td>${reportData.bptDetails?.time ? `${reportData.bptDetails.timeTaken} sec` : ''}</td>
+                        <td>${reportData.bptDetails?.time ? reportData.bptDetails.endTime : ''}</td>
+                    </tr>
+                </table>
+            `;
+
+            // Crew Call Analysis
+            document.getElementById('crew-call').innerHTML = `
+                <h2>Crew Call Analysis</h2>
+                <table class="report-table">
+                    <tr>
+                        <th>Designation</th><th>Total Duration</th><th>Call on Run</th><th>Call on Stop</th><th>Max Speed</th><th>To Mobile Number</th>
+                    </tr>
+                    ${reportData.crewCallData?.map(row => `
+                        <tr>
+                            <td>${row.designation}</td>
+                            <td>${row.totalDuration}</td>
+                            <td>${row.runDuration}</td>
+                            <td>${row.stopDuration}</td>
+                            <td>${row.maxSpeed}</td>
+                            <td>${row.toNumbers}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="6">No data available</td></tr>'}
+                </table>
+            `;
+
+            // Driving Analysis
+            document.getElementById('driving-analysis').innerHTML = `
+                <h2>Driving Analysis</h2>
+                ${reportData.stops?.length > 0 ? `
+                    <table class="report-table">
+                        <tr>
+                            <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
+                            <th>1000m</th><th>500m</th><th>100m</th><th>50m</th><th>System Generated Analysis</th><th>CLI Analysis</th>
+                        </tr>
+                        ${reportData.stops.map((stop, index) => `
+                            <tr>
+                                <td>${stop.group}</td>
+                                <td>${stop.stopLocation}</td>
+                                <td>${stop.timeString}</td>
+                                <td>${stop.startTiming}</td>
+                                <td>${(stop.kilometer / 1000).toFixed(2)}</td>
+                                <td>${stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A'}</td>
+                                <td>${stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A'}</td>
+                                <td>${stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A'}</td>
+                                <td>${stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A'}</td>
+                                <td class="system-analysis">${stop.brakingTechnique}</td>
+                                <td>
+                                    <select class="cli-analysis" data-stop-index="${index}">
+                                        <option value="Justified">Justified</option>
+                                        <option value="Not Justified">Not Justified</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                ` : '<p>No stops found in the selected range.</p>'}
+            `;
+
+            // Station Timings
+            document.getElementById('station-timings').innerHTML = `
+                <h2>Station Timings</h2>
+                <table class="report-table">
+                    <tr><th>Station</th><th>Arrival</th><th>Departure</th></tr>
+                    ${reportData.stationStops?.map(stop => `
+                        <tr>
+                            <td>${stop.station}</td>
+                            <td>${stop.arrival}</td>
+                            <td>${stop.departure}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="3">No data available</td></tr>'}
+                </table>
+            `;
+
+            // Violations
+            document.getElementById('violations').innerHTML = `
+                <h2>Overspeed Details</h2>
+                ${reportData.overSpeedDetails?.length > 0 ? `
+                    <table class="report-table">
+                        <tr><th>Section</th><th>Time Range</th><th>Speed Range (kmph)</th></tr>
+                        ${reportData.overSpeedDetails.map(detail => `
+                            <tr>
+                                <td>${detail.section}</td>
+                                <td>${detail.timeRange}</td>
+                                <td>${detail.speedRange}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                ` : '<p>No overspeeding found.</p>'}
+                <h2>Suspected Wheel Slip Details</h2>
+                ${reportData.wheelSlipDetails?.length > 0 ? `
+                    <table class="report-table">
+                        <tr><th>Section</th><th>Time Range</th><th>Speed Range (kmph)</th></tr>
+                        ${reportData.wheelSlipDetails.map(detail => `
+                            <tr>
+                                <td>${detail.section}</td>
+                                <td>${detail.timeRange}</td>
+                                <td>${detail.speedRange}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                ` : '<p>No suspected wheel slips found.</p>'}
+                <h2>Suspected Wheel Skid Details</h2>
+                ${reportData.wheelSkidDetails?.length > 0 ? `
+                    <table class="report-table">
+                        <tr><th>Section</th><th>Time Range</th><th>Speed Range (kmph)</th></tr>
+                        ${reportData.wheelSkidDetails.map(detail => `
+                            <tr>
+                                <td>${detail.section}</td>
+                                <td>${detail.timeRange}</td>
+                                <td>${detail.speedRange}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                ` : '<p>No suspected wheel skids found.</p>'}
+            `;
+
+            // Render charts with delay
+            setTimeout(() => {
+                try {
+                    const speedCanvas = document.getElementById('speedChart');
+                    if (!speedCanvas) {
+                        console.error('Speed Chart canvas not found');
+                        document.getElementById('speed-time').innerHTML += '<p class="error-message">Speed vs. Time chart canvas not found.</p>';
+                    } else {
+                        let speedLabels = reportData.speedChartConfig?.labels || ['10:00', '10:01', '10:02', '10:03', '10:04'];
+                        let speedData = reportData.speedChartConfig?.speeds || [0, 10, 20, 15, 0];
+                        if (!reportData.speedChartConfig?.labels?.length || !reportData.speedChartConfig?.speeds?.length) {
+                            console.warn('No valid data for Speed vs Time chart. Using fallback.');
+                        }
+                        console.log('Rendering Speed vs Time Chart with labels:', speedLabels.slice(0, 5), 'data:', speedData.slice(0, 5));
+                        new Chart(speedCanvas.getContext('2d'), {
+                            type: 'line',
+                            data: {
+                                labels: speedLabels,
+                                datasets: [{
+                                    label: 'Speed',
+                                    data: speedData,
+                                    borderColor: '#00008B',
+                                    backgroundColor: 'rgba(0, 0, 139, 0.1)',
+                                    fill: false,
+                                    tension: 0.4,
+                                    borderWidth: 2,
+                                    pointRadius: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: { 
+                                        title: { display: true, text: 'Time' }, 
+                                        grid: { color: '#F5F5F5' },
+                                        ticks: { maxTicksLimit: 12 }
+                                    },
+                                    y: { 
+                                        title: { display: true, text: 'Speed (kmph)' }, 
+                                        beginAtZero: true, 
+                                        ticks: { stepSize: 10 } 
+                                    }
+                                },
+                                plugins: { legend: { display: false } }
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error rendering Speed vs Time Chart:', error);
+                    document.getElementById('speed-time').innerHTML += '<p class="error-message">Failed to render Speed vs. Time chart.</p>';
+                }
+
+                try {
+                    const stopCanvas = document.getElementById('stopChart');
+                    if (!stopCanvas) {
+                        console.error('Stop Chart canvas not found');
+                        document.getElementById('speed-distance').innerHTML += '<p class="error-message">Speed vs. Distance chart canvas not found.</p>';
+                    } else {
+                        let stopLabels = reportData.stopChartConfig?.labels || [1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 0];
+                        let stopDatasets = reportData.stopChartConfig?.datasets || [{
+                            label: 'Test Stop',
+                            data: [30, 28, 25, 20, 15, 10, 8, 5, 3, 1, 0],
+                            borderColor: '#FF0000',
+                            backgroundColor: 'transparent',
+                            fill: false,
+                            tension: 0.2,
+                            borderWidth: 2,
+                            pointRadius: 3
+                        }];
+                        if (!reportData.stopChartConfig?.datasets?.length || !reportData.stopChartConfig?.labels?.length) {
+                            console.warn('No valid data for Speed vs Distance chart. Using fallback.');
+                        }
+                        console.log('Rendering Speed vs Distance Chart with labels:', stopLabels, 'datasets:', stopDatasets.length);
+                        new Chart(stopCanvas.getContext('2d'), {
+                            type: 'line',
+                            data: {
+                                labels: stopLabels,
+                                datasets: stopDatasets
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: { 
+                                        title: { display: true, text: 'Distance Before Stop (m)' }, 
+                                        ticks: { stepSize: 100 } 
+                                    },
+                                    y: { 
+                                        title: { display: true, text: 'Speed (kmph)' }, 
+                                        beginAtZero: true, 
+                                        ticks: { stepSize: 10 } 
+                                    }
+                                },
+                                plugins: { 
+                                    legend: { display: true, position: 'top' }, 
+                                    title: { display: true, text: 'Speed vs. Distance Before Stop' } 
+                                }
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error rendering Speed vs Distance Chart:', error);
+                    document.getElementById('speed-distance').innerHTML += '<p class="error-message">Failed to render Speed vs. Distance chart.</p>';
+                }
+
+                loadingOverlay.style.display = 'none';
+            }, 500);
+        }
+
+        // Initialize tabs
+        function initializeTabs() {
+            const tabs = document.querySelectorAll('.tab-button');
+            const panes = document.querySelectorAll('.tab-pane');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    panes.forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        // PDF generation
+        function generatePDF() {
+            loadingOverlay.style.display = 'flex';
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait' });
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 15;
+                const contentWidth = pageWidth - 2 * margin;
+
+                const checkPageOverflow = (currentY, spaceNeeded, pageLimit) => {
+                    if (currentY + spaceNeeded > pageHeight - margin - 10 && doc.internal.getCurrentPageInfo().pageNumber < pageLimit) {
+                        doc.addPage();
+                        return margin;
+                    }
+                    return currentY;
+                };
+
+                const addFooter = () => {
+                    const currentPage = doc.internal.getCurrentPageInfo().pageNumber;
+                    doc.setFontSize(8);
+                    doc.setTextColor(100);
+                    doc.text(`Generated on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}`, margin, pageHeight - 10);
+                    doc.text(`Page ${currentPage}`, pageWidth - margin - 20, pageHeight - 10);
+                };
+
+                const wrapText = (text, maxWidth, fontSize) => {
+                    doc.setFontSize(fontSize);
+                    return doc.splitTextToSize(text, maxWidth - 2);
+                };
+
+                let y = margin;
+                doc.setFillColor(0, 51, 102);
+                doc.rect(0, 0, pageWidth, 25, 'F');
+                doc.setFontSize(18);
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.text('SPM Analysis Report', pageWidth / 2, 15, { align: 'center' });
+                y += 30;
+
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                y = checkPageOverflow(y, 10, 1);
+                doc.text('Train Details', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 40, y + 2);
+                y += 10;
+
+                const colWidthsTrain = { label: 50, value: contentWidth - 50 };
+                const totalTableWidthTrain = contentWidth;
+                doc.setFontSize(10);
+                doc.setFillColor(0, 51, 102);
+                doc.rect(margin, y, totalTableWidthTrain, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Parameters', margin + 2, y + 6);
+                doc.text('Details', margin + colWidthsTrain.label + 2, y + 6);
+                y += 8;
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                reportData.trainDetails?.forEach((detail, index) => {
+                    const rowData = [detail.label, detail.value];
+                    const lines = rowData.map((text, idx) => wrapText(text, idx === 0 ? colWidthsTrain.label - 4 : colWidthsTrain.value - 4, 10));
+                    const maxLines = Math.max(...lines.map(l => l.length));
+                    const rowHeight = maxLines * 8;
+                    y = checkPageOverflow(y, rowHeight, 1);
+                    doc.setFillColor(index % 2 === 0 ? 220 : 240);
+                    doc.rect(margin, y, totalTableWidthTrain, rowHeight, 'F');
+                    doc.setDrawColor(150);
+                    doc.rect(margin, y, totalTableWidthTrain, rowHeight);
+                    let x = margin;
+                    lines.forEach((lines, idx) => {
+                        lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 6 + (lineIdx * 6)));
+                        x += idx === 0 ? colWidthsTrain.label : colWidthsTrain.value;
+                    });
+                    y += rowHeight;
+                });
+                y += 10;
+
+                doc.setFont('helvetica', 'bold');
+                y = checkPageOverflow(y, 10, 1);
+                doc.text('Crew Details', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 40, y + 2);
+                y += 10;
+
+                const boxWidth = (contentWidth - 10) / 2;
+                const boxHeight = 50;
+                const lpBoxX = margin;
+                const alpBoxX = margin + boxWidth + 10;
+                doc.setDrawColor(0, 51, 102);
+                doc.setLineWidth(0.5);
+                doc.rect(lpBoxX, y, boxWidth, boxHeight);
+                doc.rect(alpBoxX, y, boxWidth, boxHeight);
+                doc.setFontSize(11);
+                doc.setTextColor(0, 51, 102);
+                doc.text('LP Details', lpBoxX + 5, y + 10);
+                doc.text('ALP Details', alpBoxX + 5, y + 10);
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                reportData.lpDetails?.forEach((detail, index) => doc.text(detail, lpBoxX + 5, y + 20 + (index * 7)));
+                reportData.alpDetails?.forEach((detail, index) => doc.text(detail, alpBoxX + 5, y + 20 + (index * 7)));
+                y += boxHeight + 10;
+
+                y = checkPageOverflow(y, 10, 1);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 51, 102);
+                doc.text(`Total Stops: ${reportData.stopCount || 0}`, margin, y);
+                y += 10;
+
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10, 1);
+                doc.text('Brake Tests', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 40, y + 2);
+                y += 10;
+
+                const colWidthsBrake = { testType: 30, startTime: 40, speedReduced: 40, timeTaken: 25, endTime: 40 };
+                const totalTableWidthBrake = Object.values(colWidthsBrake).reduce((a, b) => a + b, 0);
+                doc.setFontSize(10);
+                doc.setFillColor(0, 51, 102);
+                doc.rect(margin, y, totalTableWidthBrake, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                let x = margin;
+                doc.text('Test Type', x + 2, y + 6);
+                x += colWidthsBrake.testType;
+                doc.text('Start Time', x + 2, y + 6);
+                x += colWidthsBrake.startTime;
+                doc.text('Speed Reduced', x + 2, y + 6);
+                x += colWidthsBrake.speedReduced;
+                doc.text('Time Taken', x + 2, y + 6);
+                x += colWidthsBrake.timeTaken;
+                doc.text('End Time', x + 2, y + 6);
+                y += 8;
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                const bftRowData = reportData.bftDetails?.time
+                    ? ['Brake Feel Test (BFT)', reportData.bftDetails.time, `${reportData.bftDetails.startSpeed} kmph to ${reportData.bftDetails.endSpeed} kmph (${reportData.bftDetails.reduction} kmph)`, `${reportData.bftDetails.timeTaken} sec`, reportData.bftDetails.endTime]
+                    : ['Brake Feel Test (BFT)', `Not detected (Speed ${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bft.minSpeed}-${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bft.maxSpeed} kmph not reached)`, '', '', ''];
+                const bftLines = bftRowData.map((text, idx) => wrapText(text, Object.values(colWidthsBrake)[idx] - 4, 10));
+                const bftMaxLines = Math.max(...bftLines.map(l => l.length));
+                let rowHeight = bftMaxLines * 8;
+                y = checkPageOverflow(y, rowHeight, 1);
+                doc.setFillColor(220);
+                doc.rect(margin, y, totalTableWidthBrake, rowHeight, 'F');
+                doc.setDrawColor(150);
+                doc.rect(margin, y, totalTableWidthBrake, rowHeight);
+                x = margin;
+                bftLines.forEach((lines, idx) => {
+                    lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 6 + (lineIdx * 6)));
+                    x += Object.values(colWidthsBrake)[idx];
+                });
+                y += rowHeight;
+
+                const bptRowData = reportData.bptDetails?.time
+                    ? ['Brake Power Test (BPT)', reportData.bptDetails.time, `${reportData.bptDetails.startSpeed} kmph to ${reportData.bptDetails.endSpeed} kmph (${reportData.bptDetails.reduction} kmph)`, `${reportData.bptDetails.timeTaken} sec`, reportData.bptDetails.endTime]
+                    : ['Brake Power Test (BPT)', `Not detected (Speed ${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bpt.minSpeed}-${spmConfig.brakeTests[reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS'].bpt.maxSpeed} kmph not reached)`, '', '', ''];
+                const bptLines = bptRowData.map((text, idx) => wrapText(text, Object.values(colWidthsBrake)[idx] - 4, 10));
+                const bptMaxLines = Math.max(...bptLines.map(l => l.length));
+                rowHeight = bptMaxLines * 8;
+                y = checkPageOverflow(y, rowHeight, 1);
+                doc.setFillColor(240);
+                doc.rect(margin, y, totalTableWidthBrake, rowHeight, 'F');
+                doc.setDrawColor(150);
+                doc.rect(margin, y, totalTableWidthBrake, rowHeight);
+                x = margin;
+                bptLines.forEach((lines, idx) => {
+                    lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 6 + (lineIdx * 6)));
+                    x += Object.values(colWidthsBrake)[idx];
+                });
+                y += 10;
+
+                if (doc.internal.getCurrentPageInfo().pageNumber < 2) {
+                    doc.addPage();
+                    y = margin;
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10, 2);
+                doc.text('Crew Call Analysis', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 50, y + 2);
+                y += 10;
+
+                const colWidthsCrew = { designation: 25, totalDuration: 30, runDuration: 30, stopDuration: 30, maxSpeed: 30, toNumbers: 45 };
+                const totalTableWidthCrew = Object.values(colWidthsCrew).reduce((a, b) => a + b, 0);
+                doc.setFontSize(10);
+                doc.setFillColor(0, 51, 102);
+                doc.rect(margin, y, totalTableWidthCrew, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                x = margin;
+                doc.text('Designation', x + 2, y + 6);
+                x += colWidthsCrew.designation;
+                doc.text('Total Duration', x + 2, y + 6);
+                x += colWidthsCrew.totalDuration;
+                doc.text('Call on Run', x + 2, y + 6);
+                x += colWidthsCrew.runDuration;
+                doc.text('Call on Stop', x + 2, y + 6);
+                x += colWidthsCrew.stopDuration;
+                doc.text('Max Speed', x + 2, y + 6);
+                x += colWidthsCrew.maxSpeed;
+                doc.text('To Mobile Number', x + 2, y + 6);
+                y += 8;
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                reportData.crewCallData?.forEach((row, idx) => {
+                    const rowData = [row.designation, row.totalDuration, row.runDuration, row.stopDuration, row.maxSpeed, row.toNumbers];
+                    const lines = rowData.map((text, i) => wrapText(text, Object.values(colWidthsCrew)[i] - 4, 10));
+                    const maxLines = Math.max(...lines.map(l => l.length));
+                    rowHeight = maxLines * 8;
+                    y = checkPageOverflow(y, rowHeight, 2);
+                    doc.setFillColor(idx % 2 === 0 ? 220 : 240);
+                    doc.rect(margin, y, totalTableWidthCrew, rowHeight, 'F');
+                    doc.setDrawColor(150);
+                    doc.rect(margin, y, totalTableWidthCrew, rowHeight);
+                    x = margin;
+                    lines.forEach((lines, i) => {
+                        lines.forEach((line, lineIdx) => doc.text(line, x + 2, y + 6 + (lineIdx * 6)));
+                        x += Object.values(colWidthsCrew)[i];
+                    });
+                    y += rowHeight;
+                });
+                y += 10;
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10, 2);
+                doc.text('Driving Analysis', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 40, y + 2);
+                y += 10;
+
+                if (reportData.stops?.length > 0) {
+                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed1000m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 30, cliAnalysis: 20 };
+                    const totalTableWidthStops = Object.values(colWidthsStops).reduce((a, b) => a + b, 0);
+                    doc.setFontSize(10);
+                    doc.setFillColor(0, 51, 102);
+
+                    // Define headers and wrap them
+                    const headers = [
+                        'Sr. No.',
+                        'Stop Location',
+                        'Stop Timing',
+                        'Start Timing',
+                        'Km',
+                        '1000m',
+                        '500m',
+                        '100m',
+                        '50m',
+                        'System Generated Analysis',
+                        'CLI Analysis'
+                    ];
+                    const headerLines = headers.map((header, idx) => wrapText(header, Object.values(colWidthsStops)[idx] - 2, 10));
+                    const maxHeaderLines = Math.max(...headerLines.map(lines => lines.length));
+                    const headerRowHeight = maxHeaderLines * 6;
+
+                    // Render header row
+                    y = checkPageOverflow(y, headerRowHeight, 2);
+                    doc.rect(margin, y, totalTableWidthStops, headerRowHeight, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFont('helvetica', 'bold');
+                    x = margin;
+                    headerLines.forEach((lines, idx) => {
+                        const colWidth = Object.values(colWidthsStops)[idx];
+                        const isNumeric = [0, 4, 5, 6, 7, 8].includes(idx);
+                        lines.forEach((line, lineIdx) => {
+                            doc.text(line, isNumeric ? x + colWidth / 2 : x + 2, y + 6 + (lineIdx * 5), isNumeric ? { align: 'center' } : null);
+                        });
+                        x += colWidth;
+                    });
+                    y += headerRowHeight;
+
+                    // Draw vertical lines for header
+                    doc.setDrawColor(255, 255, 255);
+                    doc.setLineWidth(0.2);
+                    x = margin;
+                    for (let key in colWidthsStops) {
+                        doc.line(x, y - headerRowHeight, x, y);
+                        x += colWidthsStops[key];
+                    }
+                    doc.line(x, y - headerRowHeight, x, y);
+
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont('helvetica', 'normal');
+                    const cliAnalysisSelections = Array.from(document.querySelectorAll('.cli-analysis')).map(select => select.value);
+                    reportData.stops.forEach((stop, index) => {
+                        const rowData = [
+                            `${stop.group}`,
+                            stop.stopLocation,
+                            stop.timeString,
+                            stop.startTiming,
+                            `${(stop.kilometer / 1000).toFixed(3)}`,
+                            stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A',
+                            stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A',
+                            stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A',
+                            stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A',
+                            stop.brakingTechnique,
+                            cliAnalysisSelections[index] || 'Justified'
+                        ];
+                        const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsStops)[idx] - 2, 10));
+                        const maxLines = Math.max(...lines.map(l => l.length));
+                        rowHeight = maxLines * 5;
+                        y = checkPageOverflow(y, rowHeight, 2);
+                        doc.setFillColor(index % 2 === 0 ? 245 : 255);
+                        doc.rect(margin, y, totalTableWidthStops, rowHeight, 'F');
+                        doc.setDrawColor(200);
+                        doc.setLineWidth(0.1);
+                        doc.rect(margin, y, totalTableWidthStops, rowHeight);
+                        x = margin;
+                        for (let key in colWidthsStops) {
+                            doc.line(x, y, x, y + rowHeight);
+                            x += colWidthsStops[key];
+                        }
+                        doc.line(x, y, x, y + rowHeight);
+                        x = margin;
+                        lines.forEach((lines, idx) => {
+                            const colWidth = Object.values(colWidthsStops)[idx];
+                            const isNumeric = [0, 4, 5, 6, 7, 8].includes(idx);
+                            lines.forEach((line, lineIdx) => {
+                                doc.text(line, isNumeric ? x + colWidth / 2 : x + 2, y + 4 + (lineIdx * 5), isNumeric ? { align: 'center' } : null);
+                            });
+                            x += colWidth;
+                        });
+                        y += rowHeight;
+                    });
+                    doc.line(margin, y, margin + totalTableWidthStops, y);
+                    y += 10;
+                } else {
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    y = checkPageOverflow(y, 10, 2);
+                    doc.text('No stops found in the selected range.', margin, y);
+                    y += 10;
+                }
+
+                if (doc.internal.getCurrentPageInfo().pageNumber < 3) {
+                    doc.addPage();
+                    y = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 100, 3);
+                doc.text('Speed vs. Distance Before Stop', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 60, y + 2);
+                y += 10;
+
+                if (reportData.stopChartImage) {
+                    try {
+                        doc.addImage(reportData.stopChartImage, 'PNG', margin, y, contentWidth * 0.8, contentWidth * 0.8 * (600 / 400));
+                        y += contentWidth * 0.8 * (600 / 400) + 10;
+                    } catch (error) {
+                        console.error('Error adding stop chart to PDF:', error);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(255, 0, 0);
+                        doc.text('Failed to render stop graph.', margin, y);
+                        y += 10;
+                    }
+                } else {
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(255, 0, 0);
+                    doc.text('No data available for the stop graph.', margin, y);
+                    y += 10;
+                }
+
+                if (doc.internal.getCurrentPageInfo().pageNumber < 4) {
+                    doc.addPage();
+                    y = margin;
+                }
+
+                y = checkPageOverflow(y, 10, 4);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text('Station Timings', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 50, y + 2);
+                y += 10;
+
+                doc.setFontSize(10);
+                doc.setFillColor(0, 51, 102);
+                doc.rect(margin, y, contentWidth, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Station', margin + 5, y + 6);
+                doc.text('Arrival', margin + 40, y + 6);
+                doc.text('Departure', margin + 100, y + 6);
+                y += 8;
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                reportData.stationStops?.forEach((stop, index) => {
+                    y = checkPageOverflow(y, 8, 4);
+                    doc.setFillColor(index % 2 === 0 ? 220 : 240);
+                    doc.rect(margin, y, contentWidth, 8, 'F');
+                    doc.setDrawColor(150);
+                    doc.rect(margin, y, contentWidth, 8);
+                    doc.text(stop.station, margin + 5, y + 6);
+                    doc.text(stop.arrival || 'N/A', margin + 40, y + 6);
+                    doc.text(stop.departure || 'N/A', margin + 100, y + 6);
+                    y += 8;
+                });
+                y += 10;
+
+                if (doc.internal.getCurrentPageInfo().pageNumber < 5) {
+                    doc.addPage();
+                    y = margin;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 100, 5);
+                doc.text('Time vs. Speed Graph', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 60, y + 2);
+                y += 10;
+
+                if (reportData.speedChartImage) {
+                    try {
+                        doc.addImage(reportData.speedChartImage, 'PNG', margin, y, contentWidth * 0.8, contentWidth * 0.8 * (600 / 400));
+                        y += contentWidth * 0.8 * (600 / 400) + 10;
+                    } catch (error) {
+                        console.error('Error adding speed chart to PDF:', error);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(255, 0, 0);
+                        doc.text('Failed to render speed graph.', margin, y);
+                        y += 10;
+                    }
+                } else {
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(255, 0, 0);
+                    doc.text('No data available for the speed graph.', margin, y);
+                    y += 10;
+                }
+
+                if (doc.internal.getCurrentPageInfo().pageNumber < 6) {
+                    doc.addPage();
+                    y = margin;
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10, 6);
+                doc.text('Overspeed Details', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 55, y + 2);
+                y += 10;
+
+                const colWidthsOverSpeed = { section: 40, timeRange: 110, speedRange: 40 };
+                const totalTableWidthOverSpeed = Object.values(colWidthsOverSpeed).reduce((a, b) => a + b, 0);
+                doc.setFontSize(10);
+                doc.setFillColor(0, 51, 102);
+                doc.rect(margin, y, totalTableWidthOverSpeed, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                x = margin;
+                doc.text('Section', x + 2, y + 6);
+                x += colWidthsOverSpeed.section;
+                doc.text('Time Range', x + 2, y + 6);
+                x += colWidthsOverSpeed.timeRange;
+                doc.text('Speed Range (kmph)', x + colWidthsOverSpeed.speedRange / 2, y + 6, { align: 'center' });
+                y += 8;
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                if (reportData.overSpeedDetails?.length > 0) {
+                    reportData.overSpeedDetails.forEach((detail, index) => {
+                        const rowData = [detail.section, detail.timeRange, detail.speedRange];
+                        const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsOverSpeed)[idx] - 4, 10));
+                        const maxLines = Math.max(...lines.map(l => l.length));
+                        rowHeight = maxLines * 8;
+                        y = checkPageOverflow(y, rowHeight, 6);
+                        doc.setFillColor(index % 2 === 0 ? 220 : 240);
+                        doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight, 'F');
+                        doc.setDrawColor(150);
+                        doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight);
+                        x = margin;
+                        lines.forEach((lines, idx) => {
+                            const isNumeric = idx === 2;
+                            lines.forEach((line, lineIdx) => doc.text(line, isNumeric ? x + Object.values(colWidthsOverSpeed)[idx] / 2 : x + 2, y + 6 + (lineIdx * 6), isNumeric ? { align: 'center' } : null));
+                            x += Object.values(colWidthsOverSpeed)[idx];
+                        });
+                        y += rowHeight;
+                    });
+                } else {
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    y += 8;
+                    y += 2;
+                    doc.text('No overspeeding found.', margin, y);
+                    y += 10;
+                }
+
+                y += 10;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10, 6);
+                doc.text('Suspected Wheel Slip Details', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 55, y + 2);
+                y += 10;
+
+                doc.setFontSize(10);
+                doc.setFillColor(0, 51, 102);
+                doc.rect(margin, y, totalTableWidthOverSpeed, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                x = margin;
+                doc.text('Section', x + 2, y + 6);
+                x += colWidthsOverSpeed.section;
+                doc.text('Time Range', x + 2, y + 6);
+                x += colWidthsOverSpeed.timeRange;
+                doc.text('Speed Range (kmph)', x + colWidthsOverSpeed.speedRange / 2, y + 6, { align: 'center' });
+                y += 8;
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                if (reportData.wheelSlipDetails?.length > 0) {
+                    reportData.wheelSlipDetails.forEach((detail, index) => {
+                        const rowData = [detail.section, detail.timeRange, detail.speedRange];
+                        const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsOverSpeed)[idx] - 4, 10));
+                        const maxLines = Math.max(...lines.map(l => l.length));
+                        rowHeight = maxLines * 8;
+                        y = checkPageOverflow(y, rowHeight, 6);
+                        doc.setFillColor(index % 2 === 0 ? 220 : 240);
+                        doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight, 'F');
+                        doc.setDrawColor(150);
+                        doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight);
+                        x = margin;
+                        lines.forEach((lines, idx) => {
+                            const isNumeric = idx === 2;
+                            lines.forEach((line, lineIdx) => doc.text(line, isNumeric ? x + Object.values(colWidthsOverSpeed)[idx] / 2 : x + 2, y + 6 + (lineIdx * 6), isNumeric ? { align: 'center' } : null));
+                            x += Object.values(colWidthsOverSpeed)[idx];
+                        });
+                        y += rowHeight;
+                    });
+                } else {
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    y += 8;
+                    y += 2;
+                    doc.text('No suspected wheel slips found.', margin, y);
+                    y += 10;
+                }
+
+                y += 10;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10, 6);
+                doc.text('Suspected Wheel Skid Details', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 55, y + 2);
+                y += 10;
+
+                doc.setFontSize(10);
+                doc.setFillColor(0, 51, 102);
+                doc.rect(margin, y, totalTableWidthOverSpeed, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                x = margin;
+                doc.text('Section', x + 2, y + 6);
+                x += colWidthsOverSpeed.section;
+                doc.text('Time Range', x + 2, y + 6);
+                x += colWidthsOverSpeed.timeRange;
+                doc.text('Speed Range (kmph)', x + colWidthsOverSpeed.speedRange / 2, y + 6, { align: 'center' });
+                y += 8;
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                if (reportData.wheelSkidDetails?.length > 0) {
+                    reportData.wheelSkidDetails.forEach((detail, index) => {
+                        const rowData = [detail.section, detail.timeRange, detail.speedRange];
+                        const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsOverSpeed)[idx] - 4, 10));
+                        const maxLines = Math.max(...lines.map(l => l.length));
+                        rowHeight = maxLines * 8;
+                        y = checkPageOverflow(y, rowHeight, 6);
+                        doc.setFillColor(index % 2 === 0 ? 220 : 240);
+                        doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight, 'F');
+                        doc.setDrawColor(150);
+                        doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight);
+                        x = margin;
+                        lines.forEach((lines, idx) => {
+                            const isNumeric = idx === 2;
+                            lines.forEach((line, lineIdx) => doc.text(line, isNumeric ? x + Object.values(colWidthsOverSpeed)[idx] / 2 : x + 2, y + 6 + (lineIdx * 6), isNumeric ? { align: 'center' } : null));
+                            x += Object.values(colWidthsOverSpeed)[idx];
+                        });
+                        y += rowHeight;
+                    });
+                } else {
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    y += 8;
+                    y += 2;
+                    doc.text('No suspected wheel skids found.', margin, y);
+                    y += 10;
+                }
+
+                if (doc.internal.getCurrentPageInfo().pageNumber < 7) {
+                    doc.addPage();
+                    y = margin;
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10, 7);
+                doc.text('CLI Observation', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 50, y + 2);
+                y += 10;
+
+                const cliRemarks = document.getElementById('cliRemarks').value.trim() || 'No remarks provided.';
+                const remarkLines = wrapText(cliRemarks, contentWidth - 4, 10);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                remarkLines.forEach((line, index) => {
+                    y = checkPageOverflow(y, 8, 7);
+                    doc.text(line, margin + 2, y + 6);
+                    y += 8;
+                });
+
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    addFooter();
+                }
+
+                doc.save(`SPM_Analysis_${reportData.trainDetails?.find(d => d.label === 'Train Number')?.value || 'Report'}.pdf`);
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Failed to generate PDF. Please check console logs.');
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('downloadReport').addEventListener('click', generatePDF);
+        document.getElementById('backToForm').addEventListener('click', () => {
+            localStorage.removeItem('spmReportData');
+            window.location.href = 'index.html';
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                renderReport();
+                initializeTabs();
+            } catch (error) {
+                console.error('Error initializing report:', error);
+                document.getElementById('reportContent').innerHTML = '<p class="error-message">Failed to load report. Please return to the form and try again.</p>';
+                loadingOverlay.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
