@@ -72,6 +72,13 @@
             background-color: #fff;
             box-sizing: border-box;
         }
+        .download-button, .back-button {
+            display: none; /* Buttons default roop se hide rahenge */
+        }
+        .download-button:disabled {
+            background-color: #cccccc; /* Disabled button ka color */
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -107,7 +114,7 @@
             <div id="violations" class="tab-pane"></div>
             <div id="cli-observation" class="tab-pane">
                 <h2>CLI Observation</h2>
-                <textarea id="cliRemarks" rows="4" placeholder="Enter CLI remarks here..."></textarea>
+                <textarea id="cliRemarks" rows="4" placeholder="Please enter at least 15 words in CLI Observation....."></textarea>
             </div>
         </div>
         <button id="downloadReport" class="download-button">Download Report</button>
@@ -448,12 +455,24 @@
         function initializeTabs() {
             const tabs = document.querySelectorAll('.tab-button');
             const panes = document.querySelectorAll('.tab-pane');
+            const downloadBtn = document.getElementById('downloadReport');
+            const backBtn = document.getElementById('backToForm');
+
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
                     panes.forEach(p => p.classList.remove('active'));
                     tab.classList.add('active');
                     document.getElementById(tab.dataset.tab).classList.add('active');
+
+                    // Buttons ko dikhane ya hide karne ka naya logic
+                    if (tab.dataset.tab === 'cli-observation') {
+                        downloadBtn.style.display = 'inline-block';
+                        backBtn.style.display = 'inline-block';
+                    } else {
+                        downloadBtn.style.display = 'none';
+                        backBtn.style.display = 'none';
+                    }
                 });
             });
         }
@@ -1130,6 +1149,7 @@
         }
 
         // Event listeners
+       // Event listeners
         document.getElementById('downloadReport').addEventListener('click', generatePDF);
         document.getElementById('backToForm').addEventListener('click', () => {
             localStorage.removeItem('spmReportData');
@@ -1141,6 +1161,31 @@
             try {
                 renderReport();
                 initializeTabs();
+
+                // --- DOWNLOAD VALIDATION LOGIC START ---
+                const downloadBtn = document.getElementById('downloadReport');
+                const cliRemarksTextarea = document.getElementById('cliRemarks');
+
+                // Shuruaat mein button ko disable rakhein
+                downloadBtn.disabled = true;
+                downloadBtn.title = 'Please enter at least 15 words in CLI Observation.';
+
+                // Text area mein type karne par check karein
+                cliRemarksTextarea.addEventListener('input', () => {
+                    const text = cliRemarksTextarea.value.trim();
+                    // Shabdon ko ginein
+                    const wordCount = text ? text.split(/\s+/).filter(word => word.length > 0).length : 0;
+
+                    if (wordCount >= 15) {
+                        downloadBtn.disabled = false;
+                        downloadBtn.title = 'Click to download the report.';
+                    } else {
+                        downloadBtn.disabled = true;
+                        downloadBtn.title = `Please enter at least ${15 - wordCount} more word(s).`;
+                    }
+                });
+                // --- DOWNLOAD VALIDATION LOGIC END ---
+
             } catch (error) {
                 console.error('Error initializing report:', error);
                 document.getElementById('reportContent').innerHTML = '<p class="error-message">Failed to load report. Please return to the form and try again.</p>';
