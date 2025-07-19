@@ -241,83 +241,53 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 return;
             }
 
+           // --- START: NAYA CODE YAHAN PASTE KAREIN ---
+
             let cumulativeDistanceMeters = 0;
-            let startFound = false;
-            const jsonData = dataRows.map((row, index) => {
-                let parsedTime = row.time;
-                const distanceMeters = parseFloat(row['Dist. Mtrs']) || 0;
-                if (isNaN(distanceMeters) || distanceMeters < 0) {
-                    console.warn(`Invalid Dist. Mtrs at row ${index + 1}: ${row['Dist. Mtrs']}`);
-                }
+            let jsonDataWithRecalculatedDistance = [];
 
-                if (row.Event.toUpperCase() === 'START' && !startFound) {
-                    startFound = true;
-                    console.log(`START event at ${parsedTime.toLocaleString('en-IN')}`);
-                }
-
-                if (startFound) {
-                    cumulativeDistanceMeters += distanceMeters;
-                }
-
-                if (row.Event.toUpperCase() === 'STOP') {
-                    startFound = false;
-                    console.log(`STOP event at ${parsedTime.toLocaleString('en-IN')}, Cumulative Distance: ${cumulativeDistanceMeters.toFixed(2)}m`);
-                }
-
-                console.log(`Row ${index + 1} Time: ${parsedTime.toLocaleString('en-IN')}, Dist. Mtrs: ${distanceMeters.toFixed(2)}m, Cumulative: ${cumulativeDistanceMeters.toFixed(2)}m`);
-
-                return {
-                    Time: parsedTime,
-                    Distance: distanceMeters,
-                    CumulativeDistance: cumulativeDistanceMeters,
-                    Speed: parseFloat(row['Inst Kmph']) || 0,
-                    Event: row.Event.toUpperCase(),
-                    IncrementalDistance: distanceMeters
-                };
-            }).filter(row => row && row.Time && !isNaN(row.Time.getTime()) && 
-                            row.Time >= fromDateTime && row.Time <= toDateTime);
-
-            let startStopDistanceMeters = 0;
-            let startIndex = -1;
+            // Har row ke liye loop chala kar nayi distance calculate karein
             for (let i = 0; i < dataRows.length; i++) {
                 const row = dataRows[i];
-                if (row.Event.toUpperCase() === 'START' && row.time >= fromDateTime && startIndex === -1) {
-                    startIndex = i;
-                    console.log(`START found at ${row.time.toLocaleString('en-IN')}`);
-                }
-                if (row.Event.toUpperCase() === 'STOP' && startIndex !== -1 && row.time <= toDateTime) {
-                    for (let j = startIndex; j <= i; j++) {
-                        const distanceMeters = parseFloat(dataRows[j]['Dist. Mtrs']) || 0;
-                        startStopDistanceMeters += distanceMeters;
+                const time = row.time;
+                const speedKmph = parseFloat(row['Inst Kmph']) || 0;
+                const event = (row.Event || '').toUpperCase();
+
+                if (i > 0) {
+                    const prevRow = dataRows[i - 1];
+                    const prevTime = prevRow.time;
+                    const timeDiffSeconds = (time.getTime() - prevTime.getTime()) / 1000;
+
+                    if (timeDiffSeconds > 0 && timeDiffSeconds < 10) {
+                        const prevSpeedKmph = parseFloat(prevRow['Inst Kmph']) || 0;
+                        const avgSpeedMps = ((speedKmph + prevSpeedKmph) / 2) * (1000 / 3600);
+                        const distanceTraveled = avgSpeedMps * timeDiffSeconds;
+                        cumulativeDistanceMeters += distanceTraveled;
                     }
-                    console.log(`STOP found at ${row.time.toLocaleString('en-IN')}, Distance from START: ${startStopDistanceMeters.toFixed(2)}m`);
-                    break;
                 }
+
+                jsonDataWithRecalculatedDistance.push({
+                    Time: time,
+                    Speed: speedKmph,
+                    CumulativeDistance: cumulativeDistanceMeters, // Apni calculate ki hui distance istemaal karein
+                    Event: event
+                });
             }
 
-            const calculatedTotalDistanceKm = jsonData.length > 0 ? jsonData[jsonData.length - 1].CumulativeDistance / 1000 : 0;
-            console.log(`Calculated Total Distance: ${calculatedTotalDistanceKm.toFixed(3)} km`);
-
-            if (calculatedTotalDistanceKm < 0) {
-                console.error(`Invalid total distance: ${calculatedTotalDistanceKm.toFixed(3)} km is negative`);
-            } else if (calculatedTotalDistanceKm > 1000) {
-                console.warn(`Unusually large distance: ${calculatedTotalDistanceKm.toFixed(3)} km. Verify SPM file.`);
-            }
-
-            console.log('Parsed Data (first 5):', jsonData.slice(0, 5).map(row => ({
-                Time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata'}),
-                Speed: row.Speed,
-                Distance: row.Distance.toFixed(2),
-                CumulativeDistance: row.CumulativeDistance.toFixed(2),
-                Event: row.Event
-            })));
+            // Ab user ke diye gaye time range mein data filter karein
+            const jsonData = jsonDataWithRecalculatedDistance.filter(row =>
+                row && row.Time && !isNaN(row.Time.getTime()) &&
+                row.Time >= fromDateTime && row.Time <= toDateTime
+            );
 
             if (jsonData.length === 0) {
-                console.error('No valid data in time range:', { fromDateTime: fromDateTime.toLocaleString('en-IN'), toDateTime: toDateTime.toLocaleString('en-IN') });
                 alert('No valid data found within the selected time range. Please check the SPM file or time inputs.');
                 return;
             }
 
+            console.log('Processed data with RECALCULATED distance (first 5):', jsonData.slice(0, 5));
+
+            // stationsData ko yahaan define karein
             const stationsData = window.stationSignalData
                 .filter(row => row['SECTION'] === section)
                 .map(row => ({
@@ -337,18 +307,20 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
             const fromStation = stationsData.find(station => station.name === fromSection);
             const toStation = stationsData.find(station => station.name === toSection);
+
+            // Nayi calculate ki hui distance se variable ko define karein
+            const calculatedTotalDistanceKm = jsonData.length > 0 ? jsonData[jsonData.length - 1].CumulativeDistance / 1000 : 0;
+            console.log(`Recalculated Total Distance: ${calculatedTotalDistanceKm.toFixed(3)} km`);
+
+            // Ab dono distance ko validate karein
             if (fromStation && toStation) {
                 const expectedDistanceKm = Math.abs(toStation.distance - fromStation.distance) / 1000;
                 console.log(`Expected Distance (${fromSection} to ${toSection}): ${expectedDistanceKm.toFixed(3)} km`);
-                if (Math.abs(calculatedTotalDistanceKm - expectedDistanceKm) > 1) {
-                    console.warn(`Distance mismatch: Calculated ${calculatedTotalDistanceKm.toFixed(3)} km vs Expected ${expectedDistanceKm.toFixed(3)} km`);
-                } else {
-                    console.log(`Distance validated: ${calculatedTotalDistanceKm.toFixed(3)} km ≈ ${expectedDistanceKm.toFixed(3)} km`);
+                if (Math.abs(calculatedTotalDistanceKm - expectedDistanceKm) > 5) { // 5km ka margin rakha hai
+                    console.warn(`Distance mismatch: Recalculated ${calculatedTotalDistanceKm.toFixed(3)} km vs Expected ${expectedDistanceKm.toFixed(3)} km`);
                 }
-            } else {
-                console.log(`No station data for validation. Calculated distance: ${calculatedTotalDistanceKm.toFixed(3)} km`);
             }
-
+            // --- END: NAYA CODE YAHAN KHATAM ---
             if (!fromStation) {
                 alert('Selected From Station is not valid for the chosen Section.');
                 return;
@@ -379,7 +351,11 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 alert('No valid departure found in the selected time range (Speed >= 1 km/h with 200m continuous movement).');
                 return;
             }
-
+            // --- AAP APNA NAYA CODE YAHAN DAAL SAKTE HAIN ---
+            const departureAbsoluteSPMDistance = jsonData[departureIndex].CumulativeDistance;
+            const fromStationAbsoluteCSVDistance = fromStation.distance;
+            const distanceOffset = fromStationAbsoluteCSVDistance - departureAbsoluteSPMDistance;
+            // ---
             const departureTime = jsonData[departureIndex].Time;
             console.log('Departure Time:', departureTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true }));
 
@@ -387,6 +363,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 const rowTime = row.Time;
                 return rowTime >= departureTime && rowTime <= toDateTime && !isNaN(rowTime.getTime());
             });
+            
 
             if (filteredData.length === 0) {
                 alert('No valid data found after departure within the selected time range.');
@@ -399,14 +376,14 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 Distance: row.CumulativeDistance.toFixed(2)
             })));
 
-            let normalizedData = filteredData.map(row => {
-                return {
-                    ...row,
-                    Distance: row.NormalizedDistance
-                };
-            });
+            const initialDistance = filteredData.length > 0 ? filteredData[0].CumulativeDistance : 0;
+            let normalizedData = filteredData.map(row => ({
+                ...row,
+                // Main distance property: METERS mein, starting point se relative.
+                Distance: row.CumulativeDistance - initialDistance
+            }));
 
-            console.log('Normalized Data (first 5):', normalizedData.slice(0, 5));
+            console.log('Normalized Data (first 5, distance in meters):', normalizedData.slice(0, 5).map(r => ({...r, Distance: r.Distance.toFixed(2)})));
 
             const fromIndex = stationsData.findIndex(station => station.name === fromSection);
             const toIndex = stationsData.findIndex(station => station.name === toSection);
@@ -424,7 +401,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
             let normalizedStations = routeStations.map(station => ({
                 name: station.name,
-                distance: Math.abs(station.distance - fromStation.distance) / 1000
+                distance: Math.abs(station.distance - fromStation.distance)
             }));
 
             console.log('Normalized Stations:', normalizedStations);
@@ -657,9 +634,10 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     potentialStops.push({
                         index: i,
                         time: row.Time,
-                        timeString: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
-                        timeLabel: row.Time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
-                        kilometer: row.CumulativeDistance
+                        timeString: row.Time.toLocaleString(/*...*/),
+                        timeLabel: row.Time.toLocaleTimeString(/*...*/),
+                        // FIX: Yahaan absolute 'CumulativeDistance' ki jagah nayi 'Distance' (relative meters) istemaal karein.
+                        kilometer: row.Distance
                     });
                 }
             }
@@ -706,82 +684,86 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 alert(`No ${spmConfig.eventCodes.zeroSpeed} (ZeroSpeed) event found. Please check the SPM file.`);
             }
 
-            stops = stops.map((stop, index) => {
-                const stopDistanceMeters = stop.kilometer;
-                let stopLocation = '';
-                let startTiming = null;
+          // --- START: NAYA STOPS.MAP CODE YAHAN PASTE KAREIN ---
+// --- START: NAYA STOPS.MAP CODE YAHAN PASTE KAREIN ---
+stops = stops.map((stop, index) => {
+    const absoluteStopSPMDistance = initialDistance + stop.kilometer;
+    const alignedStopDistanceCSV = absoluteStopSPMDistance + distanceOffset;
 
-                const atStationOrSignal = window.stationSignalData.find(row => {
-                    if (row['SECTION'] !== section) return false;
-                    const signalDistance = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - (fromStation.distance || 0);
-                    const rangeStart = signalDistance - 200;
-                    const rangeEnd = signalDistance + 200;
-                    return stopDistanceMeters >= rangeStart && stopDistanceMeters <= rangeEnd;
-                });
+    let stopLocation = '';
+    let startTiming = null;
 
-                if (atStationOrSignal) {
-                    stopLocation = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
-                } else {
-                    let sectionStart = null;
-                    let sectionEnd = null;
-                    for (let i = 0; i < normalizedStations.length - 1; i++) {
-                        const startStation = normalizedStations[i];
-                        const endStation = normalizedStations[i + 1];
-                        const startDistanceMeters = startStation.distance * 1000;
-                        const endDistanceMeters = endStation.distance * 1000;
-                        if (stopDistanceMeters >= startDistanceMeters && stopDistanceMeters < endDistanceMeters) {
-                            sectionStart = startStation.name;
-                            sectionEnd = endStation.name;
-                            break;
-                        }
-                    }
-                    stopLocation = sectionStart && sectionEnd ? `${sectionStart}-${sectionEnd}` : 'Unknown Section';
+    // Ab aligned distance ko CSV ke absolute distance se compare karein
+    const atStationOrSignal = window.stationSignalData.find(row => {
+        if (row['SECTION'] !== section) return false;
+        const signalAbsoluteDistanceCSV = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']);
+        const rangeStart = signalAbsoluteDistanceCSV - 200;
+        const rangeEnd = signalAbsoluteDistanceCSV + 200;
+        return alignedStopDistanceCSV >= rangeStart && alignedStopDistanceCSV <= rangeEnd;
+    });
+
+    if (atStationOrSignal) {
+        stopLocation = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
+    } else {
+        // Fallback: Section dhoondhne ke liye bhi aligned distance ka istemaal karein
+        let sectionStart = null;
+        let sectionEnd = null;
+        for (let i = 0; i < routeStations.length - 1; i++) {
+            const startStation = routeStations[i];
+            const endStation = routeStations[i + 1];
+            if (alignedStopDistanceCSV >= startStation.distance && alignedStopDistanceCSV < endStation.distance) {
+                sectionStart = startStation.name;
+                sectionEnd = endStation.name;
+                break;
+            }
+        }
+        stopLocation = sectionStart && sectionEnd ? `${sectionStart}-${sectionEnd}` : 'Unknown Section';
+    }
+
+    // Start timing ka logic waisa hi rahega
+    const stopIndex = stop.index;
+    for (let i = stopIndex + 1; i < normalizedData.length; i++) {
+        const currentSpeed = normalizedData[i].Speed;
+        const currentTime = new Date(normalizedData[i].Time);
+        if (currentSpeed > 0 && currentTime.getTime() > stop.time.getTime()) {
+            startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+            break;
+        }
+    }
+
+    // SpeedsBefore aur brakingTechnique ka logic waisa hi rahega
+    const distancesBefore = [1000, 500, 100, 50];
+    const speedsBefore = distancesBefore.map(targetDistance => {
+        let closestRow = null;
+        let minDistanceDiff = Infinity;
+        for (let i = stop.index; i >= 0; i--) {
+            const row = normalizedData[i];
+            const distanceDiff = stop.kilometer - row.Distance;
+            if (distanceDiff >= targetDistance) {
+                const absDiff = Math.abs(distanceDiff - targetDistance);
+                if (absDiff < minDistanceDiff) {
+                    minDistanceDiff = absDiff;
+                    closestRow = row;
                 }
+            }
+        }
+        return closestRow ? Math.floor(closestRow.Speed).toString() : 'N/A';
+    });
 
-                console.log(`Stop at ${(stop.kilometer / 1000).toFixed(3)} km assigned location: ${stopLocation}`);
+    const [speed1000m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
+    let isSmooth = speed1000m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
+    const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
 
-                const stopIndex = stop.index;
-                for (let i = stopIndex + 1; i < normalizedData.length; i++) {
-                    const currentSpeed = normalizedData[i].Speed;
-                    const currentTime = new Date(normalizedData[i].Time);
-                    if (currentSpeed > 0 && currentTime.getTime() > stop.time.getTime()) {
-                        startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
-                        break;
-                    }
-                }
-
-                const distancesBefore = [1, 0.5, 0.1, 0.05];
-                const speedsBefore = distancesBefore.map(targetDistance => {
-                    let closestRow = null;
-                    let minDistanceDiff = Infinity;
-                    for (let i = stop.index; i >= 0; i--) {
-                        const row = normalizedData[i];
-                        const distanceDiff = (stop.kilometer / 1000) - row.Distance;
-                        if (distanceDiff >= targetDistance) {
-                            const absDiff = Math.abs(distanceDiff - targetDistance);
-                            if (absDiff < minDistanceDiff) {
-                                minDistanceDiff = absDiff;
-                                closestRow = row;
-                            }
-                        }
-                    }
-                    return closestRow ? Math.floor(closestRow.Speed).toString() : 'N/A';
-                });
-
-                const [speed1000m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
-                let isSmooth = speed1000m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
-                const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
-
-                return {
-                    ...stop,
-                    stopLocation,
-                    startTiming: startTiming || 'N/A',
-                    speedsBefore: speedsBefore,
-                    brakingTechnique,
-                    group: index + 1
-                };
-            });
-
+    return {
+        ...stop,
+        stopLocation,
+        startTiming: startTiming || 'N/A',
+        speedsBefore: speedsBefore,
+        brakingTechnique,
+        group: index + 1
+    };
+});
+// --- END: NAYA STOPS.MAP CODE YAHAN KHATAM --
             console.log('Enhanced Stops:', stops);
 
            const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
@@ -861,94 +843,76 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
                 if (bftDetails && bptDetails) break;
             }
-            const stationStops = normalizedStations.map((station, stationIndex) => {
-                const stopRangeStart = station.distance - 0.4;
-                const stopRangeEnd = station.distance + 0.4;
+           // --- START: NAYA STATION TIMING CODE YAHAN PASTE KAREIN ---
+const stationStops = normalizedStations.map((station, stationIndex) => {
+    const stopRangeStart = station.distance - 400; // Station ke 400m ke daayre mein
+    const stopRangeEnd = station.distance + 400;
 
-                let stationStop = stops.find(stop => {
-                    const stopDistance = stop.kilometer / 1000;
-                    return stopDistance >= stopRangeStart && stopDistance <= stopRangeEnd;
-                });
+    let stationStop = stops.find(stop => {
+        return stop.kilometer >= stopRangeStart && stop.kilometer <= stopRangeEnd;
+    });
 
-                let arrivalTime = 'N/A';
-                let departureTime = 'N/A';
+    let arrivalTime = 'N/A';
+    let departureTime = 'N/A';
+    const timeFormat = {
+        timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+    };
 
-                if (stationStop) {
-                    arrivalTime = stationStop.timeString;
-                    departureTime = stationStop.startTiming;
-                } else if (stationIndex === normalizedStations.length - 1 && station.name === toSection) {
-                    if (normalizedData.length > 0) {
-                        const lastDataPoint = normalizedData[normalizedData.length - 1];
-                        if (Math.abs(lastDataPoint.Distance - station.distance) <= 1) {
-                            arrivalTime = lastDataPoint.Time.toLocaleString('en-IN', {
-                                timeZone: 'Asia/Kolkata',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                hour12: true
-                            });
-                        }
-                    }
-                } else if (stationIndex === 0 && station.name === fromSection) {
-                    departureTime = filteredData[0].Time.toLocaleString('en-IN', {
-                        timeZone: 'Asia/Kolkata',
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: true
-                    });
-                } else {
-                    let closestPoint = null;
-                    let minDistanceDiff = Infinity;
-                    for (const row of normalizedData) {
-                        const distDiff = Math.abs(row.Distance - station.distance);
-                        if (distDiff <= 1 && distDiff < minDistanceDiff) {
-                            minDistanceDiff = distDiff;
-                            closestPoint = row;
-                        }
-                    }
-                    if (closestPoint) {
-                        if (stationIndex < normalizedStations.length - 1) {
-                            departureTime = closestPoint.Time.toLocaleString('en-IN', {
-                                timeZone: 'Asia/Kolkata',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                hour12: true
-                            });
-                        } else {
-                            arrivalTime = closestPoint.Time.toLocaleString('en-IN', {
-                                timeZone: 'Asia/Kolkata',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                hour12: true
-                            });
-                        }
-                    }
+    if (stationStop) {
+        // Case 1: Agar train station par ruki thi
+        arrivalTime = stationStop.timeString;
+        departureTime = stationStop.startTiming;
+    } else {
+        // Case 2: Agar train nahi ruki (passing)
+        if (stationIndex === 0 && station.name === fromSection) {
+            // Pehla station
+            departureTime = filteredData[0].Time.toLocaleString('en-IN', timeFormat);
+        } else {
+            // Beech ke stations ke liye "CROSSING" logic
+            let crossingPoint = null;
+            for (let i = 1; i < normalizedData.length; i++) {
+                const prevRow = normalizedData[i - 1];
+                const currRow = normalizedData[i];
+
+                // Check karein ki train ne station ki doori ko cross kiya ya nahi
+                if ((prevRow.Distance <= station.distance && currRow.Distance >= station.distance) ||
+                    (prevRow.Distance >= station.distance && currRow.Distance <= station.distance)) {
+                    crossingPoint = currRow; // Crossing point mil gaya
+                    break;
                 }
+            }
 
-                return {
-                    station: station.name,
-                    arrival: arrivalTime,
-                    departure: departureTime
-                };
-            });
+            if (crossingPoint) {
+                if (stationIndex === normalizedStations.length - 1) {
+                    arrivalTime = crossingPoint.Time.toLocaleString('en-IN', timeFormat);
+                } else {
+                    departureTime = crossingPoint.Time.toLocaleString('en-IN', timeFormat);
+                }
+            }
+        }
+    }
 
-            console.log('Station Stops:', stationStops);
+    // Aakhri station ka departure hamesha N/A hoga
+    if (stationIndex === normalizedStations.length - 1) {
+        departureTime = 'N/A';
+        // Agar aakhri station ka arrival abhi bhi N/A hai, to last point ka time lein
+        if (arrivalTime === 'N/A' && normalizedData.length > 0) {
+                const lastDataPoint = normalizedData[normalizedData.length - 1];
+                if (Math.abs(lastDataPoint.Distance - station.distance) < 2000) { // 2km ke daayre mein
+                arrivalTime = lastDataPoint.Time.toLocaleString('en-IN', timeFormat);
+                }
+        }
+    }
 
+    return {
+        station: station.name,
+        arrival: arrivalTime,
+        departure: departureTime
+    };
+});
+
+console.log('Station Stops:', stationStops);
             document.getElementById('speedChart').width = 600;
             document.getElementById('speedChart').height = 400;
 
@@ -1042,14 +1006,15 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 : stops;
 
             const stopDatasets = selectedStops.map((stop, index) => {
-                const speeds = distanceLabels.map(targetDistance => {
+                const speeds = distanceLabels.map(targetDistance => { // targetDistance METERS mein hai
                     let closestRow = null;
                     let minDistanceDiff = Infinity;
                     for (let i = stop.index; i >= 0; i--) {
                         const row = normalizedData[i];
-                        const distanceDiff = (stop.kilometer / 1000) - row.Distance;
-                        if (distanceDiff >= targetDistance / 1000) {
-                            const absDiff = Math.abs(distanceDiff - (targetDistance / 1000));
+                        // Yahaan bhi relative meters vs relative meters compare hoga.
+                        const distanceDiff = stop.kilometer - row.Distance;
+                        if (distanceDiff >= targetDistance) {
+                            const absDiff = Math.abs(distanceDiff - targetDistance);
                             if (absDiff < minDistanceDiff) {
                                 minDistanceDiff = absDiff;
                                 closestRow = row;
