@@ -9,18 +9,18 @@ const spmConfig = {
     eventCodes: {
         zeroSpeed: 'STOP'
     },
-    brakeTests: {
+   brakeTests: {
         GOODS: {
-            bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
+            bft: { minSpeed: 10, maxSpeed: 22, maxDuration: 60 * 1000 },
             bpt: { minSpeed: 40, maxSpeed: 50, maxDuration: 60 * 1000 }
         },
         COACHING: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 60, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
         },
         MEMU: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 60, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
         }
     }
 };
@@ -114,6 +114,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
         const toSection = document.getElementById('toSection').value.toUpperCase();
         const routeSection = `${fromSection}-${toSection}`;
         const spmType = document.getElementById('spmType').value;
+        const cliName = document.getElementById('cliName').value.trim();
         const fromDateTime = new Date(document.getElementById('fromDateTime').value);
         const toDateTime = new Date(document.getElementById('toDateTime').value);
         const spmFile = document.getElementById('spmFile').files[0];
@@ -425,7 +426,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         if (overSpeedGroup) {
                             overSpeedDetails.push({
                                 section: overSpeedGroup.section,
-                                timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}`,
+                                timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}`,
                                 speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
                             });
                         }
@@ -447,7 +448,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
             if (overSpeedGroup) {
                 overSpeedDetails.push({
                     section: overSpeedGroup.section,
-                    timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}`,
+                    timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false})}`,
                     speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
                 });
             }
@@ -473,13 +474,13 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     }
                 }
 
-                if (speedDiff >= 2) {
+                if (speedDiff >= 4) {
                     if (!wheelSlipGroup || wheelSlipGroup.section !== sectionName || 
                         (row.Time.getTime() - prevRow.Time.getTime()) > 10000) {
                         if (wheelSlipGroup) {
                             wheelSlipDetails.push({
                                 section: wheelSlipGroup.section,
-                                timeRange: `${wheelSlipGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}-${wheelSlipGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}`,
+                                timeRange: `${wheelSlipGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${wheelSlipGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}`,
                                 speedRange: `${wheelSlipGroup.minSpeed.toFixed(2)}-${wheelSlipGroup.maxSpeed.toFixed(2)}`
                             });
                         }
@@ -500,7 +501,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
             if (wheelSlipGroup) {
                 wheelSlipDetails.push({
                     section: wheelSlipGroup.section,
-                    timeRange: `${wheelSlipGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}-${wheelSlipGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}`,
+                    timeRange: `${wheelSlipGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${wheelSlipGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false})}`,
                     speedRange: `${wheelSlipGroup.minSpeed.toFixed(2)}-${wheelSlipGroup.maxSpeed.toFixed(2)}`
                 });
             }
@@ -526,13 +527,13 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     }
                 }
 
-                if (speedDiff <= -4) {
+                if (speedDiff <= -5) {
                     if (!wheelSkidGroup || wheelSkidGroup.section !== sectionName || 
                         (row.Time.getTime() - prevRow.Time.getTime()) > 10000) {
                         if (wheelSkidGroup) {
                             wheelSkidDetails.push({
                                 section: wheelSkidGroup.section,
-                                timeRange: `${wheelSkidGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}-${wheelSkidGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}`,
+                                timeRange: `${wheelSkidGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${wheelSkidGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false})}`,
                                 speedRange: `${wheelSkidGroup.maxSpeed.toFixed(2)}-${wheelSkidGroup.minSpeed.toFixed(2)}`
                             });
                         }
@@ -553,7 +554,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
             if (wheelSkidGroup) {
                 wheelSkidDetails.push({
                     section: wheelSkidGroup.section,
-                    timeRange: `${wheelSkidGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}-${wheelSkidGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}`,
+                    timeRange: `${wheelSkidGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${wheelSkidGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}`,
                     speedRange: `${wheelSkidGroup.maxSpeed.toFixed(2)}-${wheelSkidGroup.minSpeed.toFixed(2)}`
                 });
             }
@@ -621,7 +622,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 sampledData = normalizedData.filter((_, index) => index % step === 0);
             }
 
-            const labels = sampledData.map(row => row.Time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+           const labels = sampledData.map(row => row.Time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
             const speeds = sampledData.map(row => row.Speed);
 
             let stops = [];
@@ -725,10 +726,10 @@ stops = stops.map((stop, index) => {
     for (let i = stopIndex + 1; i < normalizedData.length; i++) {
         const currentSpeed = normalizedData[i].Speed;
         const currentTime = new Date(normalizedData[i].Time);
-        if (currentSpeed > 0 && currentTime.getTime() > stop.time.getTime()) {
-            startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
-            break;
-        }
+         if (currentSpeed > 0 && currentTime.getTime() > stop.time.getTime()) {
+        startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+        break;
+    }
     }
 
     // SpeedsBefore aur brakingTechnique ka logic waisa hi rahega
@@ -766,24 +767,34 @@ stops = stops.map((stop, index) => {
 // --- END: NAYA STOPS.MAP CODE YAHAN KHATAM --
             console.log('Enhanced Stops:', stops);
 
-           const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
+          // --- START: BEHTAR BRAKE TEST LOGIC ---
+            const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
                 const startSpeed = data[startIdx].Speed;
                 const startTime = data[startIdx].Time.getTime();
                 let lowestSpeed = startSpeed;
                 let lowestSpeedIdx = startIdx;
+                let speedHitZero = false; // Check karega ki speed 0 to nahi hui
 
                 for (let i = startIdx + 1; i < data.length; i++) {
                     const currentSpeed = data[i].Speed;
                     const currentTime = data[i].Time.getTime();
+
+                    // Agar speed 0 ho gayi to test invalid hai
+                    if (currentSpeed === 0) {
+                        speedHitZero = true;
+                        break;
+                    }
                     if (currentTime - startTime > maxDurationMs) break;
                     if (currentSpeed > lowestSpeed + 0.5) break;
+                    
                     if (currentSpeed < lowestSpeed) {
                         lowestSpeed = currentSpeed;
                         lowestSpeedIdx = i;
                     }
                 }
                 
-                if (lowestSpeedIdx === startIdx) {
+                // Agar speed 0 hui ya kam nahi hui, to test valid nahi hai
+                if (speedHitZero || lowestSpeedIdx === startIdx) {
                     return null;
                 }
 
@@ -797,52 +808,63 @@ stops = stops.map((stop, index) => {
 
             let bftDetails = null;
             let bptDetails = null;
+            let bftMissed = false;
+            let bptMissed = false;
             const brakeTestsConfig = spmConfig.brakeTests[rakeType];
 
             for (let i = 0; i < normalizedData.length; i++) {
                 const row = normalizedData[i];
                 const speed = row.Speed;
 
-                // BFT Check
-                if (!bftDetails && speed >= brakeTestsConfig.bft.minSpeed && speed <= brakeTestsConfig.bft.maxSpeed) {
-                    const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bft.maxDuration);
-                    if (result && result.timeDiff > 1) {
-                        const speedReduction = speed - result.speed;
-                        if (speedReduction >= 5) {
-                            bftDetails = {
-                                time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                                startSpeed: speed.toFixed(2),
-                                endSpeed: result.speed.toFixed(2),
-                                reduction: speedReduction.toFixed(2),
-                                timeTaken: result.timeDiff.toFixed(0),
-                                endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                            };
-                            console.log('BFT Detected:', bftDetails);
+                // --- BFT Check ---
+                if (!bftDetails && !bftMissed) {
+                    if (speed >= brakeTestsConfig.bft.minSpeed && speed <= brakeTestsConfig.bft.maxSpeed) {
+                        const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bft.maxDuration);
+                        if (result && result.timeDiff > 1) {
+                            const speedReduction = speed - result.speed;
+                            if (speedReduction >= 5) {
+                                bftDetails = {
+                                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                    startSpeed: speed.toFixed(2),
+                                    endSpeed: result.speed.toFixed(2),
+                                    reduction: speedReduction.toFixed(2),
+                                    timeTaken: result.timeDiff.toFixed(0),
+                                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                };
+                            }
                         }
+                    } else if (speed > brakeTestsConfig.bft.maxSpeed) {
+                        bftMissed = true; // BFT ka mauka gaya
                     }
                 }
 
-                // BPT Check
-                if (!bptDetails && speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
-                     const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bpt.maxDuration);
-                     if (result && result.timeDiff > 1) {
-                        const speedReduction = speed - result.speed;
-                        if (speedReduction >= 5) {
-                            bptDetails = {
-                                time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                                startSpeed: speed.toFixed(2),
-                                endSpeed: result.speed.toFixed(2),
-                                reduction: speedReduction.toFixed(2),
-                                timeTaken: result.timeDiff.toFixed(0),
-                                endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                            };
-                            console.log('BPT Detected:', bptDetails);
+                // --- BPT Check ---
+                if (!bptDetails && !bptMissed) {
+                    if (speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
+                        const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bpt.maxDuration);
+                        if (result && result.timeDiff > 1) {
+                            const speedReduction = speed - result.speed;
+                            if (speedReduction >= 5) {
+                                bptDetails = {
+                                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                    startSpeed: speed.toFixed(2),
+                                    endSpeed: result.speed.toFixed(2),
+                                    reduction: speedReduction.toFixed(2),
+                                    timeTaken: result.timeDiff.toFixed(0),
+                                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                };
+                            }
                         }
-                     }
+                    } else if (speed > brakeTestsConfig.bpt.maxSpeed) {
+                        bptMissed = true; // BPT ka mauka gaya
+                    }
                 }
 
-                if (bftDetails && bptDetails) break;
+                if ((bftDetails || bftMissed) && (bptDetails || bptMissed)) {
+                    break;
+                }
             }
+            // --- END: BEHTAR BRAKE TEST LOGIC ---
            // --- START: NAYA STATION TIMING CODE YAHAN PASTE KAREIN ---
 const stationStops = normalizedStations.map((station, stationIndex) => {
     const stopRangeStart = station.distance - 400; // Station ke 400m ke daayre mein
@@ -855,9 +877,9 @@ const stationStops = normalizedStations.map((station, stationIndex) => {
     let arrivalTime = 'N/A';
     let departureTime = 'N/A';
     const timeFormat = {
-        timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-    };
+                timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            };
 
     if (stationStop) {
         // Case 1: Agar train station par ruki thi
@@ -1114,7 +1136,8 @@ console.log('Station Stops:', stationStops);
                     { label: 'Section', value: section || 'N/A' },
                     { label: 'Route', value: routeSection || 'N/A' },
                     { label: 'SPM Type', value: spmType || 'N/A' },
-                    { label: 'Analysis Time', value: `From ${fromDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })} to ${toDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })}` }
+                    { label: 'Analysis By', value: cliName || 'N/A' },
+                   { label: 'Analysis Time', value: `From ${fromDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })} to ${toDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}` }
                 ],
                 lpDetails: [
                     `LP ID: ${lpId || 'N/A'}`,

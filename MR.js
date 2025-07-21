@@ -13,16 +13,16 @@ const spmConfig = {
     },
     brakeTests: {
         GOODS: {
-            bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
+            bft: { minSpeed: 10, maxSpeed: 22, maxDuration: 60 * 1000 },
             bpt: { minSpeed: 40, maxSpeed: 50, maxDuration: 60 * 1000 }
         },
         COACHING: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 60, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
         },
         MEMU: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 60, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
         }
     }
 };
@@ -116,6 +116,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
     const toSection = document.getElementById('toSection').value.toUpperCase();
     const routeSection = `${fromSection}-${toSection}`;
     const spmType = document.getElementById('spmType').value;
+    const cliName = document.getElementById('cliName').value.trim();
     const fromDateTime = new Date(document.getElementById('fromDateTime').value);
     const toDateTime = new Date(document.getElementById('toDateTime').value);
     const spmFile = document.getElementById('spmFile').files[0];
@@ -458,8 +459,9 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     }
                 }
 
-                if (speedDiff >= 2) {
-                    if (!wheelSlipGroup || wheelSlipGroup.section !== sectionName || 
+               // Wheel Slip ka naya niyam: Speed 1 second mein 4 Kmph se zyada badhe
+                if (speedDiff >= 4) {
+                    if (!wheelSlipGroup || wheelSlipGroup.section !== sectionName ||
                         (row.Time - prevRow.Time) > 10000) {
                         if (wheelSlipGroup) {
                             wheelSlipDetails.push({
@@ -481,8 +483,9 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     }
                 }
 
-                if (speedDiff <= -4) {
-                    if (!wheelSkidGroup || wheelSkidGroup.section !== sectionName || 
+                // Wheel Skid ka naya niyam: Speed 1 second mein 5 Kmph se zyada ghate
+                if (speedDiff <= -5) {
+                    if (!wheelSkidGroup || wheelSkidGroup.section !== sectionName ||
                         (row.Time - prevRow.Time) > 10000) {
                         if (wheelSkidGroup) {
                             wheelSkidDetails.push({
@@ -707,24 +710,34 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
             console.log('Enhanced Stops:', stops);
 
+           // --- START: BEHTAR BRAKE TEST LOGIC ---
             const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
                 const startSpeed = data[startIdx].Speed;
                 const startTime = data[startIdx].Time.getTime();
                 let lowestSpeed = startSpeed;
                 let lowestSpeedIdx = startIdx;
+                let speedHitZero = false; // Check karega ki speed 0 to nahi hui
 
                 for (let i = startIdx + 1; i < data.length; i++) {
                     const currentSpeed = data[i].Speed;
                     const currentTime = data[i].Time.getTime();
+
+                    // Agar speed 0 ho gayi to test invalid hai
+                    if (currentSpeed === 0) {
+                        speedHitZero = true;
+                        break;
+                    }
                     if (currentTime - startTime > maxDurationMs) break;
                     if (currentSpeed > lowestSpeed + 0.5) break;
+                    
                     if (currentSpeed < lowestSpeed) {
                         lowestSpeed = currentSpeed;
                         lowestSpeedIdx = i;
                     }
                 }
                 
-                if (lowestSpeedIdx === startIdx) {
+                // Agar speed 0 hui ya kam nahi hui, to test valid nahi hai
+                if (speedHitZero || lowestSpeedIdx === startIdx) {
                     return null;
                 }
 
@@ -738,52 +751,63 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
             let bftDetails = null;
             let bptDetails = null;
+            let bftMissed = false;
+            let bptMissed = false;
             const brakeTestsConfig = spmConfig.brakeTests[rakeType];
 
             for (let i = 0; i < finalNormalizedData.length; i++) {
                 const row = finalNormalizedData[i];
                 const speed = row.Speed;
 
-                // BFT Check
-                if (!bftDetails && speed >= brakeTestsConfig.bft.minSpeed && speed <= brakeTestsConfig.bft.maxSpeed) {
-                    const result = trackSpeedReduction(finalNormalizedData, i, brakeTestsConfig.bft.maxDuration);
-                    if (result && result.timeDiff > 1) {
-                        const speedReduction = speed - result.speed;
-                        if (speedReduction >= 5) {
-                            bftDetails = {
-                                time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                                startSpeed: speed.toFixed(2),
-                                endSpeed: result.speed.toFixed(2),
-                                reduction: speedReduction.toFixed(2),
-                                timeTaken: result.timeDiff.toFixed(0),
-                                endTime: finalNormalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                            };
-                            console.log('BFT Detected:', bftDetails);
+                // --- BFT Check ---
+                if (!bftDetails && !bftMissed) {
+                    if (speed >= brakeTestsConfig.bft.minSpeed && speed <= brakeTestsConfig.bft.maxSpeed) {
+                        const result = trackSpeedReduction(finalNormalizedData, i, brakeTestsConfig.bft.maxDuration);
+                        if (result && result.timeDiff > 1) {
+                            const speedReduction = speed - result.speed;
+                            if (speedReduction >= 5) {
+                                bftDetails = {
+                                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                    startSpeed: speed.toFixed(2),
+                                    endSpeed: result.speed.toFixed(2),
+                                    reduction: speedReduction.toFixed(2),
+                                    timeTaken: result.timeDiff.toFixed(0),
+                                    endTime: finalNormalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                };
+                            }
                         }
+                    } else if (speed > brakeTestsConfig.bft.maxSpeed) {
+                        bftMissed = true; // BFT ka mauka gaya
                     }
                 }
 
-                // BPT Check
-                if (!bptDetails && speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
-                     const result = trackSpeedReduction(finalNormalizedData, i, brakeTestsConfig.bpt.maxDuration);
-                     if (result && result.timeDiff > 1) {
-                        const speedReduction = speed - result.speed;
-                        if (speedReduction >= 5) {
-                            bptDetails = {
-                                time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                                startSpeed: speed.toFixed(2),
-                                endSpeed: result.speed.toFixed(2),
-                                reduction: speedReduction.toFixed(2),
-                                timeTaken: result.timeDiff.toFixed(0),
-                                endTime: finalNormalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                            };
-                            console.log('BPT Detected:', bptDetails);
+                // --- BPT Check ---
+                if (!bptDetails && !bptMissed) {
+                    if (speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
+                        const result = trackSpeedReduction(finalNormalizedData, i, brakeTestsConfig.bpt.maxDuration);
+                        if (result && result.timeDiff > 1) {
+                            const speedReduction = speed - result.speed;
+                            if (speedReduction >= 5) {
+                                bptDetails = {
+                                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                    startSpeed: speed.toFixed(2),
+                                    endSpeed: result.speed.toFixed(2),
+                                    reduction: speedReduction.toFixed(2),
+                                    timeTaken: result.timeDiff.toFixed(0),
+                                    endTime: finalNormalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                };
+                            }
                         }
-                     }
+                    } else if (speed > brakeTestsConfig.bpt.maxSpeed) {
+                        bptMissed = true; // BPT ka mauka gaya
+                    }
                 }
 
-                if (bftDetails && bptDetails) break;
+                if ((bftDetails || bftMissed) && (bptDetails || bptMissed)) {
+                    break;
+                }
             }
+            // --- END: BEHTAR BRAKE TEST LOGIC ---
 
             const maxPoints = 500;
             let sampledData = finalNormalizedData;
@@ -1086,6 +1110,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     { label: 'Section', value: section || 'N/A' },
                     { label: 'Route', value: routeSection || 'N/A' },
                     { label: 'SPM Type', value: spmType || 'N/A' },
+                    { label: 'Analysis By', value: cliName || 'N/A' },
                     { label: 'Analysis Time', value: `From ${fromDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })} to ${toDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}` }
                 ],
                 lpDetails: [

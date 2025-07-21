@@ -42,7 +42,7 @@
 </head>
 <body>
     <div class="container">
-        <img src="railway logo.png" alt="Railway Logo" class="logo">
+        <img src="railway Logo.png" alt="Railway Logo" class="logo">
         <h1>SANKET</h1>
         <h3>(SPM Analysis and Navigation KPA Extraction Tool)</h3>
         <h4>(Designed and Developed by Electrical(OP) Bilaspur S.E.C.Railway)</h4>
@@ -172,37 +172,42 @@
                 </div>
             </div>
             <div class="form-section">
-                <h2>ANALYSIS DETAILS</h2>
-                <div class="box">
-                    <div class="form-group">
-                        <label for="spmType">Type of SPM</label>
-                        <select id="spmType" name="spmType" required>
-                            <option value="" disabled selected>Select SPM Type</option>
-                            <option value="Laxven">Laxven</option>
-                            <option value="Medha">Medha</option>
-                            <option value="Telpro">Telpro</option>
-                            <option value="MR">MR</option>
-                            <option value="VEL">VEL</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="fromDateTime">From Date and Time</label>
-                        <input type="datetime-local" id="fromDateTime" name="fromDateTime" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="toDateTime">To Date and Time</label>
-                        <input type="datetime-local" id="toDateTime" name="toDateTime" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="cugFile">Upload CUG.csv File</label>
-                        <input type="file" id="cugFile" name="cugFile" accept=".csv">
-                    </div>
-                    <div class="form-group">
-                        <label for="spmFile">Upload SPM File</label>
-                        <input type="file" id="spmFile" name="spmFile" accept=".xlsx,.xls,.txt,.pdf" required>
-                    </div>
-                </div>
-            </div>
+    <h2>ANALYSIS DETAILS</h2>
+    <div class="box">
+        <div class="form-group">
+            <label for="spmType">Type of SPM</label>
+            <select id="spmType" name="spmType" required>
+                <option value="" disabled selected>Select SPM Type</option>
+                <option value="Laxven">Laxven</option>
+                <option value="Medha">Medha</option>
+                <option value="Telpro">Telpro</option>
+                <option value="MR">MR</option>
+                <option value="VEL">VEL</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="cliName">CLI NAME (Analysis and Ambush done by)</label>
+            <input type="text" id="cliName" name="cliName" required>
+        </div>
+        <div class="form-group">
+            <label for="fromDateTime">From Date and Time</label>
+            <input type="datetime-local" id="fromDateTime" name="fromDateTime" required>
+        </div>
+        <div class="form-group">
+            <label for="toDateTime">To Date and Time</label>
+            <input type="datetime-local" id="toDateTime" name="toDateTime" required>
+        </div>
+        <div class="form-group">
+            <label for="cugFile">Upload CUG.csv File</label>
+            <input type="file" id="cugFile" name="cugFile" accept=".csv">
+        </div>
+        <div class="form-group">
+            <label for="spmFile">Upload SPM File</label>
+            <input type="file" id="spmFile" name="spmFile" accept=".xlsx,.xls,.txt,.pdf" required>
+        </div>
+    </div>
+</div>
             <button type="submit">ANALYZE THE SPM DATA</button>
         </form>
     </div>

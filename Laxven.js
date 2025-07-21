@@ -11,16 +11,16 @@ const spmConfig = {
     },
     brakeTests: {
         GOODS: {
-            bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
+            bft: { minSpeed: 10, maxSpeed: 22, maxDuration: 60 * 1000 },
             bpt: { minSpeed: 40, maxSpeed: 50, maxDuration: 60 * 1000 }
         },
         COACHING: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 60, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
         },
         MEMU: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 60, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
         }
     }
 };
@@ -120,6 +120,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
         const toSection = document.getElementById('toSection').value.toUpperCase();
         const routeSection = `${fromSection}-${toSection}`;
         const spmType = document.getElementById('spmType').value;
+        const cliName = document.getElementById('cliName').value.trim();
         const fromDateTime = new Date(document.getElementById('fromDateTime').value);
         const toDateTime = new Date(document.getElementById('toDateTime').value);
         const spmFile = document.getElementById('spmFile').files[0];
@@ -421,7 +422,8 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         }
                     }
 
-                    if (speedDiff >= 2) {
+                    // Wheel Slip ka naya niyam: Speed 1 second mein 4 Kmph se zyada badhe
+                    if (speedDiff >= 4) {
                         if (!wheelSlipGroup || wheelSlipGroup.section !== sectionName || 
                             (row.Time - prevRow.Time) > 10000) {
                             if (wheelSlipGroup) {
@@ -444,7 +446,8 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         }
                     }
 
-                    if (speedDiff <= -4) {
+                    // Wheel Skid ka naya niyam: Speed 1 second mein 5 Kmph se zyada ghate
+                    if (speedDiff <= -5) {
                         if (!wheelSkidGroup || wheelSkidGroup.section !== sectionName || 
                             (row.Time - prevRow.Time) > 10000) {
                             if (wheelSkidGroup) {
@@ -637,96 +640,102 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
                 console.log('Enhanced Stops:', stops);
 
-               const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
-    const startSpeed = data[startIdx].Speed;
-    const startTime = data[startIdx].Time.getTime();
-    let lowestSpeed = startSpeed;
-    let lowestSpeedIdx = startIdx;
+              const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
+                    const startSpeed = data[startIdx].Speed;
+                    const startTime = data[startIdx].Time.getTime();
+                    let lowestSpeed = startSpeed;
+                    let lowestSpeedIdx = startIdx;
+                    let speedHitZero = false; // Naya flag
 
-    for (let i = startIdx + 1; i < data.length; i++) {
-        const currentSpeed = data[i].Speed;
-        const currentTime = data[i].Time.getTime();
+                    for (let i = startIdx + 1; i < data.length; i++) {
+                        const currentSpeed = data[i].Speed;
+                        const currentTime = data[i].Time.getTime();
 
-        // Agar time limit cross ho gayi to loop band karein
-        if (currentTime - startTime > maxDurationMs) {
-            break;
-        }
-        
-        // Agar speed thodi si bhi badhne lage to test khatm maana jayega
-        if (currentSpeed > lowestSpeed + 0.5) {
-            break;
-        }
-        
-        // Sabse kam speed ko record karein
-        if (currentSpeed < lowestSpeed) {
-            lowestSpeed = currentSpeed;
-            lowestSpeedIdx = i;
-        }
-    }
-    
-    // Agar speed kam hi nahi hui to use valid test na maane
-    if (lowestSpeedIdx === startIdx) {
-        return null;
-    }
+                        // Naya check: Agar speed 0 ho gayi to test invalid hai
+                        if (currentSpeed === 0) {
+                            speedHitZero = true;
+                            break;
+                        }
+                        if (currentTime - startTime > maxDurationMs) break;
+                        if (currentSpeed > lowestSpeed + 0.5) break;
+                        
+                        if (currentSpeed < lowestSpeed) {
+                            lowestSpeed = currentSpeed;
+                            lowestSpeedIdx = i;
+                        }
+                    }
+                    
+                    // Agar speed 0 hui ya kam nahi hui, to test valid nahi hai
+                    if (speedHitZero || lowestSpeedIdx === startIdx) {
+                        return null;
+                    }
 
-    const endTime = data[lowestSpeedIdx].Time.getTime();
-    return { 
-        index: lowestSpeedIdx, 
-        speed: lowestSpeed, 
-        timeDiff: (endTime - startTime) / 1000 
-    };
-};
-
-                let bftDetails = null;
-let bptDetails = null;
-const brakeTestsConfig = spmConfig.brakeTests[rakeType];
-
-for (let i = 0; i < normalizedData.length; i++) {
-    const row = normalizedData[i];
-    const speed = row.Speed;
-
-    // BFT Check
-    if (!bftDetails && speed >= brakeTestsConfig.bft.minSpeed && speed <= brakeTestsConfig.bft.maxSpeed) {
-        const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bft.maxDuration);
-        if (result && result.timeDiff > 1) {
-            const speedReduction = speed - result.speed;
-            // Naya condition: Speed reduction kam se kam 5 Kmph hona chahiye
-            if (speedReduction >= 5) {
-                bftDetails = {
-                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                    startSpeed: speed.toFixed(2),
-                    endSpeed: result.speed.toFixed(2),
-                    reduction: speedReduction.toFixed(2),
-                    timeTaken: result.timeDiff.toFixed(0),
-                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                    const endTime = data[lowestSpeedIdx].Time.getTime();
+                    return { 
+                        index: lowestSpeedIdx, 
+                        speed: lowestSpeed, 
+                        timeDiff: (endTime - startTime) / 1000 
+                    };
                 };
-                console.log('BFT Detected:', bftDetails);
-            }
-        }
-    }
 
-    // BPT Check
-    if (!bptDetails && speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
-         const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bpt.maxDuration);
-         if (result && result.timeDiff > 1) {
-            const speedReduction = speed - result.speed;
-            // Naya condition: Speed reduction kam se kam 5 Kmph hona chahiye
-            if (speedReduction >= 5) {
-                bptDetails = {
-                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                    startSpeed: speed.toFixed(2),
-                    endSpeed: result.speed.toFixed(2),
-                    reduction: speedReduction.toFixed(2),
-                    timeTaken: result.timeDiff.toFixed(0),
-                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                };
-                console.log('BPT Detected:', bptDetails);
-            }
-         }
-    }
+                 let bftDetails = null;
+                let bptDetails = null;
+                let bftMissed = false;
+                let bptMissed = false;
+                const brakeTestsConfig = spmConfig.brakeTests[rakeType];
 
-    if (bftDetails && bptDetails) break;
-}
+                for (let i = 0; i < normalizedData.length; i++) {
+                    const row = normalizedData[i];
+                    const speed = row.Speed;
+
+                    // --- BFT Check ---
+                    if (!bftDetails && !bftMissed) {
+                        if (speed >= brakeTestsConfig.bft.minSpeed && speed <= brakeTestsConfig.bft.maxSpeed) {
+                            const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bft.maxDuration);
+                            if (result && result.timeDiff > 1) {
+                                const speedReduction = speed - result.speed;
+                                if (speedReduction >= 5) {
+                                    bftDetails = {
+                                        time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                        startSpeed: speed.toFixed(2),
+                                        endSpeed: result.speed.toFixed(2),
+                                        reduction: speedReduction.toFixed(2),
+                                        timeTaken: result.timeDiff.toFixed(0),
+                                        endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                    };
+                                }
+                            }
+                        } else if (speed > brakeTestsConfig.bft.maxSpeed) {
+                            bftMissed = true; // BFT ka mauka gaya
+                        }
+                    }
+
+                    // --- BPT Check ---
+                    if (!bptDetails && !bptMissed) {
+                        if (speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
+                            const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bpt.maxDuration);
+                            if (result && result.timeDiff > 1) {
+                                const speedReduction = speed - result.speed;
+                                if (speedReduction >= 5) {
+                                    bptDetails = {
+                                        time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                        startSpeed: speed.toFixed(2),
+                                        endSpeed: result.speed.toFixed(2),
+                                        reduction: speedReduction.toFixed(2),
+                                        timeTaken: result.timeDiff.toFixed(0),
+                                        endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                    };
+                                }
+                            }
+                        } else if (speed > brakeTestsConfig.bpt.maxSpeed) {
+                            bptMissed = true; // BPT ka mauka gaya
+                        }
+                    }
+
+                    if ((bftDetails || bftMissed) && (bptDetails || bptMissed)) {
+                        break;
+                    }
+                }
                 // Updated Crew Call Analysis
                 const analyzeCalls = (calls, designation) => {
                     if (!calls || calls.length === 0) {
@@ -785,106 +794,72 @@ for (let i = 0; i < normalizedData.length; i++) {
                 const crewCallData = [...lpCallDetails, ...alpCallDetails];
                 // ***MODIFIED PART ENDS HERE***
 
-                const stationStops = normalizedStations.map((station, index) => {
-                    const stopRangeStart = station.distance - 400;
-                    const stopRangeEnd = station.distance + 400;
+                const stationStops = normalizedStations.map((station, stationIndex) => {
+                const stopRangeStart = station.distance - 400;
+                const stopRangeEnd = station.distance + 400;
 
-                    let stationStop = stops.find(stop => {
-                        const stopDistance = stop.kilometer;
-                        return stopDistance >= stopRangeStart && stopDistance <= stopRangeEnd;
-                    });
-
-                    let arrivalTime = 'N/A';
-                    let departureTime = 'N/A';
-
-                    if (stationStop) {
-                        arrivalTime = stationStop.timeString;
-                        departureTime = stationStop.startTiming;
-                    } else if (index !== normalizedStations.length - 1) {
-                        let closestPoint = null;
-                        let minDistanceDiff = Infinity;
-                        for (const row of normalizedData) {
-                            const distDiff = Math.abs(row.Distance - station.distance);
-                            if (
-                                distDiff <= 1000 &&
-                                distDiff < minDistanceDiff &&
-                                row.Time >= fromDateTime &&
-                                row.Time <= toDateTime
-                            ) {
-                                minDistanceDiff = distDiff;
-                                closestPoint = row;
-                            }
-                        }
-                        if (closestPoint) {
-                            departureTime = closestPoint.Time.toLocaleString('en-IN', {
-                                timeZone: 'Asia/Kolkata',
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                hour12: false
-                            });
-                        }
-                    }
-
-                    if (index === 0 && station.name === fromSection) {
-                        departureTime = filteredData[0].Time.toLocaleString('en-IN', {
-                            timeZone: 'Asia/Kolkata',
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            hour12: false
-                        });
-                        arrivalTime = 'N/A';
-                    }
-
-                    if (index === normalizedStations.length - 1 && station.name === toSection) {
-                        if (stationStop) {
-                            arrivalTime = stationStop.timeString;
-                        } else {
-                            let lastValidPoint = null;
-                            let minTimeDiff = Infinity;
-                            for (const row of normalizedData) {
-                                const timeDiff = Math.abs(toDateTime - row.Time);
-                                const distDiff = Math.abs(row.Distance - station.distance);
-                                if (
-                                    distDiff <= 2000 &&
-                                    row.Time <= toDateTime &&
-                                    timeDiff < minTimeDiff
-                                ) {
-                                    minTimeDiff = timeDiff;
-                                    lastValidPoint = row;
-                                }
-                            }
-                            if (lastValidPoint) {
-                                arrivalTime = lastValidPoint.Time.toLocaleString('en-IN', {
-                                    timeZone: 'Asia/Kolkata',
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit',
-                                    hour12: false
-                                });
-                            }
-                        }
-                        departureTime = 'N/A';
-                    }
-
-                    return {
-                        station: station.name,
-                        arrival: arrivalTime,
-                        departure: departureTime
-                    };
+                let stationStop = stops.find(stop => {
+                    return stop.kilometer >= stopRangeStart && stop.kilometer <= stopRangeEnd;
                 });
 
-                console.log('Station Stops:', stationStops);
+                let arrivalTime = 'N/A';
+                let departureTime = 'N/A';
+                const timeFormat = {
+                    timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false // Yahan badlav kiya gaya hai
+                };
+                if (stationStop) {
+                    // Case 1: Agar train station par ruki thi
+                    arrivalTime = stationStop.timeString;
+                    departureTime = stationStop.startTiming;
+                } else {
+                    // Case 2: Agar train nahi ruki (passing)
+                    if (stationIndex === 0 && station.name === fromSection) {
+                        // Pehla station
+                        departureTime = filteredData[0].Time.toLocaleString('en-IN', timeFormat);
+                    } else {
+                        // Beech ke stations ke liye "CROSSING" logic
+                        let crossingPoint = null;
+                        for (let i = 1; i < normalizedData.length; i++) {
+                            const prevRow = normalizedData[i - 1];
+                            const currRow = normalizedData[i];
+
+                            // Check karein ki train ne station ki doori ko cross kiya ya nahi
+                            if ((prevRow.Distance <= station.distance && currRow.Distance >= station.distance) ||
+                                (prevRow.Distance >= station.distance && currRow.Distance <= station.distance)) {
+                                crossingPoint = currRow; // Crossing point mil gaya
+                                break;
+                            }
+                        }
+
+                        if (crossingPoint) {
+                            if (stationIndex === normalizedStations.length - 1) {
+                                arrivalTime = crossingPoint.Time.toLocaleString('en-IN', timeFormat);
+                            } else {
+                                departureTime = crossingPoint.Time.toLocaleString('en-IN', timeFormat);
+                            }
+                        }
+                    }
+                }
+
+                // Aakhri station ka departure hamesha N/A hoga
+                if (stationIndex === normalizedStations.length - 1) {
+                    departureTime = 'N/A';
+                    // Agar aakhri station ka arrival abhi bhi N/A hai, to last point ka time lein
+                    if (arrivalTime === 'N/A' && normalizedData.length > 0) {
+                         const lastDataPoint = normalizedData[normalizedData.length - 1];
+                         if (Math.abs(lastDataPoint.Distance - station.distance) < 2000) { // 2km ke daayre mein
+                            arrivalTime = lastDataPoint.Time.toLocaleString('en-IN', timeFormat);
+                         }
+                    }
+                }
+
+                return {
+                    station: station.name,
+                    arrival: arrivalTime,
+                    departure: departureTime
+                };
+            });
 
                 let speedChartImage = null;
                 let stopChartImage = null;
@@ -1092,6 +1067,7 @@ for (let i = 0; i < normalizedData.length; i++) {
                         { label: 'Section', value: section || 'N/A' },
                         { label: 'Route', value: routeSection || 'N/A' },
                         { label: 'SPM Type', value: spmType || 'N/A' },
+                        { label: 'Analysis By', value: cliName || 'N/A' },
                         { label: 'Analysis Time', value: `From ${fromDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })} to ${toDateTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}` }
                     ],
                     lpDetails: [
