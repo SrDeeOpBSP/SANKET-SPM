@@ -625,11 +625,20 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         return closestRow ? closestRow.Speed.toFixed(2) : 'N/A';
                     });
 
-                    const [speed1000, speed500, speed100, speed50] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
-                    let isSmooth = speed1000 <= 60 && speed500 <= 30 && speed100 <= 20 && speed50 <= 10;
-                    const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
+                    const [speed1000m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
+                     let isSmooth;
+                         if (rakeType === 'COACHING' || rakeType === 'MEMU') {
+                          isSmooth = speed1000m <= 60 && speed500m <= 40 && speed100m <= 20 && speed50m <= 10;
+                          } else if (rakeType === 'GOODS') {
+                          isSmooth = speed1000m <= 30 && speed500m <= 20 && speed100m <= 15 && speed50m <= 5;
+                          } else {
+                          // Agar koi aur type ho to default logic
+                          isSmooth = speed1000m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
+                          }
 
-                    return {
+                           const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
+
+                           return {
                         ...stop,
                         stopLocation,
                         startTiming: startTiming || 'N/A',

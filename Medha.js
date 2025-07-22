@@ -752,8 +752,17 @@ stops = stops.map((stop, index) => {
     });
 
     const [speed1000m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
-    let isSmooth = speed1000m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
-    const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
+                     let isSmooth;
+                         if (rakeType === 'COACHING' || rakeType === 'MEMU') {
+                          isSmooth = speed1000m <= 60 && speed500m <= 40 && speed100m <= 20 && speed50m <= 10;
+                          } else if (rakeType === 'GOODS') {
+                          isSmooth = speed1000m <= 30 && speed500m <= 20 && speed100m <= 15 && speed50m <= 5;
+                          } else {
+                          // Agar koi aur type ho to default logic
+                          isSmooth = speed1000m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
+                          }
+
+                           const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
 
     return {
         ...stop,
