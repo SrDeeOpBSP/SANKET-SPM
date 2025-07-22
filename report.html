@@ -488,12 +488,12 @@
                 const margin = 15;
                 const contentWidth = pageWidth - 2 * margin;
 
-                const checkPageOverflow = (currentY, spaceNeeded, pageLimit) => {
-                    if (currentY + spaceNeeded > pageHeight - margin - 10 && doc.internal.getCurrentPageInfo().pageNumber < pageLimit) {
-                        doc.addPage();
-                        return margin;
-                    }
-                    return currentY;
+                 const checkPageOverflow = (currentY, spaceNeeded) => {
+                   if (currentY + spaceNeeded > pageHeight - margin - 10) { // Yahan se pageLimit condition hata di gayi hai
+                   doc.addPage();
+                   return margin;
+                   }
+                   return currentY;
                 };
 
                 const addFooter = () => {
@@ -521,7 +521,7 @@
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
                 doc.setFont('helvetica', 'bold');
-                y = checkPageOverflow(y, 10, 1);
+                y = checkPageOverflow(y, 10);
                 doc.text('Train Details', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 40, y + 2);
@@ -545,7 +545,7 @@
                     const lines = rowData.map((text, idx) => wrapText(text, idx === 0 ? colWidthsTrain.label - 4 : colWidthsTrain.value - 4, 10));
                     const maxLines = Math.max(...lines.map(l => l.length));
                     const rowHeight = maxLines * 8;
-                    y = checkPageOverflow(y, rowHeight, 1);
+                    y = checkPageOverflow(y, rowHeight);
                     doc.setFillColor(index % 2 === 0 ? 220 : 240);
                     doc.rect(margin, y, totalTableWidthTrain, rowHeight, 'F');
                     doc.setDrawColor(150);
@@ -560,7 +560,7 @@
                 y += 10;
 
                 doc.setFont('helvetica', 'bold');
-                y = checkPageOverflow(y, 10, 1);
+                y = checkPageOverflow(y, 10);
                 doc.text('Crew Details', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 40, y + 2);
@@ -585,7 +585,7 @@
                 reportData.alpDetails?.forEach((detail, index) => doc.text(detail, alpBoxX + 5, y + 20 + (index * 7)));
                 y += boxHeight + 10;
 
-                y = checkPageOverflow(y, 10, 1);
+                y = checkPageOverflow(y, 10);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(0, 51, 102);
                 doc.text(`Total Stops: ${reportData.stopCount || 0}`, margin, y);
@@ -593,7 +593,7 @@
 
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10, 1);
+                y = checkPageOverflow(y, 10);
                 doc.text('Brake Tests', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 40, y + 2);
@@ -638,7 +638,7 @@
                 const bftLines = bftRowData.map((text, idx) => wrapText(String(text), Object.values(colWidthsBrake)[idx] - 4, 9));
                 const bftMaxLines = Math.max(...bftLines.map(l => l.length));
                 let rowHeight = bftMaxLines * 6;
-                y = checkPageOverflow(y, rowHeight, 1);
+                y = checkPageOverflow(y, rowHeight);
                 doc.setFillColor(220);
                 doc.rect(margin, y, totalTableWidthBrake, rowHeight, 'F');
                 doc.setDrawColor(150);
@@ -657,7 +657,7 @@
                 const bptLines = bptRowData.map((text, idx) => wrapText(String(text), Object.values(colWidthsBrake)[idx] - 4, 9));
                 const bptMaxLines = Math.max(...bptLines.map(l => l.length));
                 rowHeight = bptMaxLines * 6;
-                y = checkPageOverflow(y, rowHeight, 1);
+                y = checkPageOverflow(y, rowHeight);
                 doc.setFillColor(240);
                 doc.rect(margin, y, totalTableWidthBrake, rowHeight, 'F');
                 doc.setDrawColor(150);
@@ -677,7 +677,7 @@
                doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10, 2);
+                y = checkPageOverflow(y, 10);
                 doc.text('Crew Call Analysis', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 50, y + 2);
@@ -712,7 +712,7 @@
                         const lines = rowData.map((text, i) => wrapText(String(text), Object.values(colWidthsCrew)[i] - 4, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 8;
-                        y = checkPageOverflow(y, rowHeight, 2);
+                        y = checkPageOverflow(y, rowHeight);
                         doc.setFillColor(idx % 2 === 0 ? 220 : 240);
                         doc.rect(margin, y, totalTableWidthCrew, rowHeight, 'F');
                         x_crew = margin;
@@ -723,7 +723,7 @@
                         y += rowHeight;
                     });
                 } else {
-                    y = checkPageOverflow(y, 8, 2);
+                    y = checkPageOverflow(y, 8);
                     doc.text('No CUG data provided', margin + (totalTableWidthCrew / 2), y + 6, { align: 'center' });
                     y += 8;
                 }
@@ -732,7 +732,7 @@
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10, 2);
+                y = checkPageOverflow(y, 10);
                 doc.text('Driving Analysis', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 40, y + 2);
@@ -763,7 +763,7 @@
                     const headerRowHeight = maxHeaderLines * 6;
 
                     // Render header row
-                    y = checkPageOverflow(y, headerRowHeight, 2);
+                    y = checkPageOverflow(y, headerRowHeight);
                     doc.rect(margin, y, totalTableWidthStops, headerRowHeight, 'F');
                     doc.setTextColor(255, 255, 255);
                     doc.setFont('helvetica', 'bold');
@@ -808,7 +808,7 @@
                         const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsStops)[idx] - 2, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 5;
-                        y = checkPageOverflow(y, rowHeight, 2);
+                        y = checkPageOverflow(y, rowHeight);
                         doc.setFillColor(index % 2 === 0 ? 245 : 255);
                         doc.rect(margin, y, totalTableWidthStops, rowHeight, 'F');
                         doc.setDrawColor(200);
@@ -836,20 +836,18 @@
                 } else {
                     doc.setFontSize(10);
                     doc.setFont('helvetica', 'normal');
-                    y = checkPageOverflow(y, 10, 2);
+                    y = checkPageOverflow(y, 10);
                     doc.text('No stops found in the selected range.', margin, y);
                     y += 10;
                 }
 
-                if (doc.internal.getCurrentPageInfo().pageNumber < 3) {
-                    doc.addPage();
-                    y = margin;
-                }
+              doc.addPage();
+               y = margin;
 
                 doc.setFontSize(12);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 100, 3);
+                y = checkPageOverflow(y, 100);
                 doc.text('Speed vs. Distance Before Stop', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 60, y + 2);
@@ -873,12 +871,10 @@
                     y += 10;
                 }
 
-                if (doc.internal.getCurrentPageInfo().pageNumber < 4) {
-                    doc.addPage();
-                    y = margin;
-                }
+                doc.addPage();
+                y = margin;
 
-                y = checkPageOverflow(y, 10, 4);
+                y = checkPageOverflow(y, 10);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
@@ -900,7 +896,7 @@
                 doc.setTextColor(0, 0, 0);
                 doc.setFont('helvetica', 'normal');
                 reportData.stationStops?.forEach((stop, index) => {
-                    y = checkPageOverflow(y, 8, 4);
+                    y = checkPageOverflow(y, 8);
                     doc.setFillColor(index % 2 === 0 ? 220 : 240);
                     doc.rect(margin, y, contentWidth, 8, 'F');
                     doc.setDrawColor(150);
@@ -912,15 +908,13 @@
                 });
                 y += 10;
 
-                if (doc.internal.getCurrentPageInfo().pageNumber < 5) {
-                    doc.addPage();
-                    y = margin;
-                }
+                doc.addPage();
+                y = margin;
 
                 doc.setFontSize(12);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 100, 5);
+                y = checkPageOverflow(y, 100);
                 doc.text('Time vs. Speed Graph', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 60, y + 2);
@@ -944,15 +938,12 @@
                     y += 10;
                 }
 
-                if (doc.internal.getCurrentPageInfo().pageNumber < 6) {
-                    doc.addPage();
-                    y = margin;
-                }
-
+               doc.addPage();
+               y = margin;
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10, 6);
+                y = checkPageOverflow(y, 10);
                 doc.text('Overspeed Details', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 55, y + 2);
@@ -981,7 +972,7 @@
                         const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsOverSpeed)[idx] - 4, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 8;
-                        y = checkPageOverflow(y, rowHeight, 6);
+                        y = checkPageOverflow(y, rowHeight);
                         doc.setFillColor(index % 2 === 0 ? 220 : 240);
                         doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight, 'F');
                         doc.setDrawColor(150);
@@ -1007,7 +998,7 @@
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10, 6);
+                y = checkPageOverflow(y, 10);
                 doc.text('Suspected Wheel Slip Details', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 55, y + 2);
@@ -1034,7 +1025,7 @@
                         const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsOverSpeed)[idx] - 4, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 8;
-                        y = checkPageOverflow(y, rowHeight, 6);
+                        y = checkPageOverflow(y, rowHeight);
                         doc.setFillColor(index % 2 === 0 ? 220 : 240);
                         doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight, 'F');
                         doc.setDrawColor(150);
@@ -1060,7 +1051,7 @@
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10, 6);
+                y = checkPageOverflow(y, 10);
                 doc.text('Suspected Wheel Skid Details', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 55, y + 2);
@@ -1087,7 +1078,7 @@
                         const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsOverSpeed)[idx] - 4, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 8;
-                        y = checkPageOverflow(y, rowHeight, 6);
+                        y = checkPageOverflow(y, rowHeight);
                         doc.setFillColor(index % 2 === 0 ? 220 : 240);
                         doc.rect(margin, y, totalTableWidthOverSpeed, rowHeight, 'F');
                         doc.setDrawColor(150);
@@ -1109,15 +1100,13 @@
                     y += 10;
                 }
 
-                if (doc.internal.getCurrentPageInfo().pageNumber < 7) {
-                    doc.addPage();
-                    y = margin;
-                }
+               doc.addPage();
+               y = margin;
 
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
                 doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10, 7);
+                y = checkPageOverflow(y, 10);
                 doc.text('CLI Observation', margin, y);
                 doc.setDrawColor(0, 51, 102);
                 doc.line(margin, y + 2, margin + 50, y + 2);
@@ -1128,7 +1117,7 @@
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
                 remarkLines.forEach((line, index) => {
-                    y = checkPageOverflow(y, 8, 7);
+                    y = checkPageOverflow(y, 8);
                     doc.text(line, margin + 2, y + 6);
                     y += 8;
                 });
