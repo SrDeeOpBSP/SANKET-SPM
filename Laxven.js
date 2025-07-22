@@ -873,6 +873,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 try {
                     const ctx = document.getElementById('speedChart').getContext('2d');
                     if (!ctx) throw new Error('Speed Chart canvas not found');
+                    document.getElementById('speedChart').width = 600;
                     document.getElementById('speedChart').height = 400;
                     speedChartInstance = new Chart(ctx, {
                         type: 'line',
