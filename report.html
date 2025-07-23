@@ -112,10 +112,13 @@
             <div id="station-timings" class="tab-pane"></div>
             <div id="speed-time" class="tab-pane"><canvas id="speedChart"></canvas></div>
             <div id="violations" class="tab-pane"></div>
-            <div id="cli-observation" class="tab-pane">
-                <h2>CLI Observation</h2>
-                <textarea id="cliRemarks" rows="4" placeholder="Please enter at least 15 words in CLI Observation....."></textarea>
-            </div>
+           <div id="cli-observation" class="tab-pane">
+    <h2>CLI Observation</h2>
+    <textarea id="cliRemarks" rows="4" placeholder="Please enter at least 15 words in CLI Observation....."></textarea>
+
+    <h3 style="margin-top: 20px;">Abnormalities Found</h3>
+    <textarea id="cliAbnormalities" rows="4" placeholder="Enter any abnormalities found..."></textarea>
+</div>
         </div>
         <button id="downloadReport" class="download-button">Download Report</button>
         <button id="backToForm" class="back-button">Back to Form</button>
@@ -1121,6 +1124,30 @@
                     doc.text(line, margin + 2, y + 6);
                     y += 8;
                 });
+                // --- Start of New Code ---
+
+                y += 10; // Add some space
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                y = checkPageOverflow(y, 10);
+                doc.text('Abnormalities Found', margin, y);
+                doc.setDrawColor(0, 51, 102);
+                doc.line(margin, y + 2, margin + 50, y + 2);
+                y += 10;
+
+                const cliAbnormalities = document.getElementById('cliAbnormalities').value.trim() || 'No abnormalities reported.';
+                const abnormalityLines = wrapText(cliAbnormalities, contentWidth - 4, 10);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                abnormalityLines.forEach((line, index) => {
+                    y = checkPageOverflow(y, 8);
+                    doc.text(line, margin + 2, y + 6);
+                    y += 8;
+                });
+
+                // --- End of New Code ---
 
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {

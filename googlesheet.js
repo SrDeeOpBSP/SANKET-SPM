@@ -1,14 +1,17 @@
-// googlesheet.js (Final Version)
+// googlesheet.js (Updated on 23-July-2025)
 
 async function sendDataToGoogleSheet(data) {
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbx5XBopSWOwQSKcoKTDemNT_1DqI-WTNWUDTn0d4xbO27qd7y9n8t-5fIgkLkOS0QyM/exec';
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxrW5C-pW1z2TXxMkvUWE3BLJkEzg7EDdPVgLkQ08f99ByNU5GgqgwcN2Iq9Z_m6Gfp/exec';
 
     // General CLI Observation
     data.cliObservation = document.getElementById('cliRemarks').value.trim();
     
-    // *** NAYA CODE: BFT aur BPT remarks ko data mein add karein ***
+    // BFT aur BPT remarks
     data.bftRemark = document.getElementById('bftRemark').value.trim() || 'NA';
     data.bptRemark = document.getElementById('bptRemark').value.trim() || 'NA';
+
+    // *** NAYA CODE: Abnormality text ko data mein add karein ***
+    data.abnormality = document.getElementById('cliAbnormalities').value.trim() || 'NIL';
 
     try {
         await fetch(appsScriptUrl, {
