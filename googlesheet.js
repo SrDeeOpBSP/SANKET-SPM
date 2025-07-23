@@ -1,10 +1,14 @@
-// googlesheet.js
+// googlesheet.js (Final Version)
 
 async function sendDataToGoogleSheet(data) {
-    // Aapka Diya Gaya Apps Script URL
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbwwzY_Dn0wcfmAJ2hLbYqUpOL7jLoDKkbxJ2eesiyZYzoQGeq3m2y8kHomvpIulbWqW/exec';
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbx5XBopSWOwQSKcoKTDemNT_1DqI-WTNWUDTn0d4xbO27qd7y9n8t-5fIgkLkOS0QyM/exec';
 
+    // General CLI Observation
     data.cliObservation = document.getElementById('cliRemarks').value.trim();
+    
+    // *** NAYA CODE: BFT aur BPT remarks ko data mein add karein ***
+    data.bftRemark = document.getElementById('bftRemark').value.trim() || 'NA';
+    data.bptRemark = document.getElementById('bptRemark').value.trim() || 'NA';
 
     try {
         await fetch(appsScriptUrl, {
@@ -19,26 +23,21 @@ async function sendDataToGoogleSheet(data) {
     }
 }
 
-// Yeh code page load hone ke baad download button se jud jayega
 document.addEventListener('DOMContentLoaded', () => {
     const downloadButton = document.getElementById('downloadReport');
     
     if (downloadButton) {
         downloadButton.addEventListener('click', () => {
-            // 1. localStorage se report data lein
             const reportDataString = localStorage.getItem('spmReportData');
             if (reportDataString) {
                 const reportData = JSON.parse(reportDataString);
                 
-                // Driving Analysis table se CLI ke remarks collect karein
                 const cliAnalysisSelections = Array.from(document.querySelectorAll('.cli-analysis')).map(select => select.value);
                 reportData.cliAnalysis = cliAnalysisSelections;
                 
-                // Data ko Google Sheet par bhejein
                 sendDataToGoogleSheet(reportData);
             }
             
-            // 2. PDF download function call karein (yeh report.html mein pehle se hai)
             if (typeof generatePDF === 'function') {
                 generatePDF();
             } else {
