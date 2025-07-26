@@ -886,13 +886,14 @@ const stationStops = normalizedStations.map((station, stationIndex) => {
     let arrivalTime = 'N/A';
     let departureTime = 'N/A';
     const timeFormat = {
-                timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-            };
+        timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    };
 
     if (stationStop) {
         // Case 1: Agar train station par ruki thi
-        arrivalTime = stationStop.timeString;
+        // MODIFICATION: Format the arrival time consistently using the timeFormat object.
+        arrivalTime = stationStop.time.toLocaleString('en-IN', timeFormat);
         departureTime = stationStop.startTiming;
     } else {
         // Case 2: Agar train nahi ruki (passing)
@@ -929,10 +930,10 @@ const stationStops = normalizedStations.map((station, stationIndex) => {
         departureTime = 'N/A';
         // Agar aakhri station ka arrival abhi bhi N/A hai, to last point ka time lein
         if (arrivalTime === 'N/A' && normalizedData.length > 0) {
-                const lastDataPoint = normalizedData[normalizedData.length - 1];
-                if (Math.abs(lastDataPoint.Distance - station.distance) < 2000) { // 2km ke daayre mein
+            const lastDataPoint = normalizedData[normalizedData.length - 1];
+            if (Math.abs(lastDataPoint.Distance - station.distance) < 2000) { // 2km ke daayre mein
                 arrivalTime = lastDataPoint.Time.toLocaleString('en-IN', timeFormat);
-                }
+            }
         }
     }
 
