@@ -804,12 +804,26 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 // ***MODIFIED PART ENDS HERE***
 
                 const stationStops = normalizedStations.map((station, stationIndex) => {
-                const stopRangeStart = station.distance - 400;
-                const stopRangeEnd = station.distance + 400;
+                // Calculate total distance in KM from the normalized data
+                const totalDistanceKm = normalizedData.length > 0 ? (normalizedData[normalizedData.length - 1].Distance / 1000) : 0;
 
-                let stationStop = stops.find(stop => {
-                    return stop.kilometer >= stopRangeStart && stop.kilometer <= stopRangeEnd;
+                // Set tolerance based on rake type and distance
+                let tolerance = 400; // Default tolerance
+                if (rakeType === 'COACHING' && totalDistanceKm > 200) {
+                    tolerance = 800;
+                }
+
+                const stopRangeStart = station.distance - tolerance;
+                const stopRangeEnd = station.distance + tolerance;
+
+                // Filter all potential stops within the new tolerance
+                const potentialStops = stops.filter(stop => {
+                    const stopDistance = stop.kilometer;
+                    return stopDistance >= stopRangeStart && stopDistance <= stopRangeEnd;
                 });
+
+                // Select the latest stop if multiple are found
+                let stationStop = potentialStops.length > 0 ? potentialStops[potentialStops.length - 1] : null;
 
                 let arrivalTime = 'N/A';
                 let departureTime = 'N/A';
