@@ -605,7 +605,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         }
                     }
 
-                    const distancesBefore = [1000, 500, 100, 50];
+                    const distancesBefore = [800, 500, 100, 50];
                     const speedsBefore = distancesBefore.map(targetDistance => {
                         let closestRow = null;
                         let minDistanceDiff = Infinity;
@@ -625,15 +625,15 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         return closestRow ? closestRow.Speed.toFixed(2) : 'N/A';
                     });
 
-                    const [speed1000m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
+                    const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
                      let isSmooth;
                          if (rakeType === 'COACHING' || rakeType === 'MEMU') {
-                          isSmooth = speed1000m <= 60 && speed500m <= 40 && speed100m <= 20 && speed50m <= 10;
+                          isSmooth = speed800m <= 60 && speed500m <= 45 && speed100m <= 20 && speed50m <= 10;
                           } else if (rakeType === 'GOODS') {
-                          isSmooth = speed1000m <= 30 && speed500m <= 20 && speed100m <= 15 && speed50m <= 5;
+                          isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 5;
                           } else {
                           // Agar koi aur type ho to default logic
-                          isSmooth = speed1000m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
+                          isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
                           }
 
                            const brakingTechnique = isSmooth ? 'Smooth' : 'Late';

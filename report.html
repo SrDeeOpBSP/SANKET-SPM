@@ -259,7 +259,7 @@
                     <table class="report-table">
                         <tr>
                             <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
-                            <th>1000m</th><th>500m</th><th>100m</th><th>50m</th><th>System Generated Analysis</th><th>CLI Analysis</th>
+                            <th>800m</th><th>500m</th><th>100m</th><th>50m</th><th>System Generated Analysis</th><th>CLI Analysis</th>
                         </tr>
                         ${reportData.stops.map((stop, index) => `
                             <tr>
@@ -742,7 +742,7 @@
                 y += 10;
 
                 if (reportData.stops?.length > 0) {
-                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed1000m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 30, cliAnalysis: 20 };
+                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed800m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 30, cliAnalysis: 20 };
                     const totalTableWidthStops = Object.values(colWidthsStops).reduce((a, b) => a + b, 0);
                     doc.setFontSize(10);
                     doc.setFillColor(0, 51, 102);
@@ -754,7 +754,7 @@
                         'Stop Timing',
                         'Start Timing',
                         'Km',
-                        '1000m',
+                        '800m',
                         '500m',
                         '100m',
                         '50m',
