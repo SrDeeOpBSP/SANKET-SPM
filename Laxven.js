@@ -212,6 +212,22 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 }));
 
                 console.log('Raw JSON Data (first 5):', jsonData.slice(0, 5));
+                // --- START: Format Auto-Detection Logic ---
+// Default stoppage code ko '9G' set karein (purane format ke liye)
+let stoppageEventCode = '9G';
+
+// Check karein ki kya file mein kahin '79G' event code hai
+const isNewFormat = jsonData.some(row => row.EventGn === '79G');
+
+if (isNewFormat) {
+    // Agar '79G' milta hai, to isse naya format maanein aur stoppage code badal dein
+    stoppageEventCode = '79G';
+    console.log("New Laxven format detected. Using '79G' as the stoppage code.");
+} else {
+    // Agar '79G' nahi milta hai, to purana format hi istemal karein
+    console.log("Standard Laxven format detected. Using '9G' as the stoppage code.");
+}
+// --- END: Format Auto-Detection Logic ---
 
                 const parsedData = jsonData.map((row, index) => {
                     let parsedTime;
@@ -508,17 +524,18 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 let potentialStops = [];
 
                 for (let i = 0; i < normalizedData.length; i++) {
-                    const row = normalizedData[i];
-                    if (row.EventGn === spmConfig.eventCodes.zeroSpeed && row.Speed === 0) {
-                        potentialStops.push({
-                            index: i,
-                            time: row.Time,
-                            timeString: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
-                            timeLabel: row.Time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
-                            kilometer: row.Distance
-                        });
-                    }
-                }
+    const row = normalizedData[i];
+    // Yahan dynamic 'stoppageEventCode' variable ka istemal kiya gaya hai
+    if (row.EventGn === stoppageEventCode && row.Speed === 0) {
+        potentialStops.push({
+            index: i,
+            time: row.Time,
+            timeString: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+            timeLabel: row.Time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+            kilometer: row.Distance
+        });
+    }
+}
 
                 console.log('Potential Stops:', potentialStops.length);
 
