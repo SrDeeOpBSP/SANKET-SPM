@@ -12,15 +12,15 @@ const spmConfig = {
    brakeTests: {
         GOODS: {
             bft: { minSpeed: 10, maxSpeed: 22, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 40, maxSpeed: 50, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 35, maxSpeed: 50, maxDuration: 60 * 1000 }
         },
         COACHING: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
         },
         MEMU: {
             bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 65, maxDuration: 60 * 1000 }
+            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
         }
     }
 };
