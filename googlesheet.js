@@ -1,7 +1,7 @@
 // googlesheet.js (Updated on 23-July-2025)
 
 async function sendDataToGoogleSheet(data) {
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbyOLyS3x2zSwHPEwMFjchQ-j-atMyMAlIjSeq9v9JZ0PX62_DYzfpiAlK9DmzR6cCXl/exec';
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxrW5C-pW1z2TXxMkvUWE3BLJkEzg7EDdPVgLkQ08f99ByNU5GgqgwcN2Iq9Z_m6Gfp/exec';
 
     // General CLI Observation
     data.cliObservation = document.getElementById('cliRemarks').value.trim();
@@ -13,6 +13,24 @@ async function sendDataToGoogleSheet(data) {
     // *** NAYA CODE: Abnormality text ko data mein add karein ***
     data.abnormality = document.getElementById('cliAbnormalities').value.trim() || 'NIL';
 
+    // --- START: DUPLICATE PREVENTION LOGIC ---
+    // 1. Create a Unique ID from report details
+    const trainNumber = data.trainDetails?.find(d => d.label === 'Train Number')?.value || 'N/A';
+    const locoNumber = data.trainDetails?.find(d => d.label === 'Loco Number')?.value || 'N/A';
+    const analysisTime = data.trainDetails?.find(d => d.label === 'Analysis Time')?.value || 'N/A';
+    const uniqueId = `report_${trainNumber}_${locoNumber}_${analysisTime.replace(/[^\w]/g, '_')}`;
+
+    // 2. Check localStorage if this report has been sent before
+    if (localStorage.getItem(uniqueId)) {
+        const userWantsToResubmit = confirm("This report data has already been sent to the Google Sheet. Do you want to send it again?");
+        if (!userWantsToResubmit) {
+            console.log('Submission cancelled by user to prevent duplicate entry.');
+            // Stop the sheet submission but allow the PDF download to proceed.
+            return;
+        }
+    }
+    // --- END: DUPLICATE PREVENTION LOGIC ---
+
     try {
         await fetch(appsScriptUrl, {
             method: 'POST',
@@ -21,8 +39,16 @@ async function sendDataToGoogleSheet(data) {
             body: JSON.stringify(data)
         });
         console.log('Data successfully sent to Google Sheet.');
+        alert('Data successfully sent to Google Sheet!'); // Inform the user
+
+        // --- START: DUPLICATE PREVENTION LOGIC (FLAGGING) ---
+        // 3. Flag the report as sent in localStorage
+        localStorage.setItem(uniqueId, 'true');
+        // --- END: DUPLICATE PREVENTION LOGIC (FLAGGING) ---
+
     } catch (error) {
         console.error('Error sending data to Google Sheet:', error);
+        alert('There was an error sending the data to Google Sheet. Please check the console.'); // Inform user of error
     }
 }
 
@@ -38,10 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cliAnalysisSelections = Array.from(document.querySelectorAll('.cli-analysis')).map(select => select.value);
                 reportData.cliAnalysis = cliAnalysisSelections;
                 
+                // This function now contains the duplicate check logic
                 sendDataToGoogleSheet(reportData);
             }
             
             if (typeof generatePDF === 'function') {
+                // The generatePDF function is called regardless of whether the data was sent to the sheet again.
                 generatePDF();
             } else {
                 console.error('generatePDF function is not defined.');
