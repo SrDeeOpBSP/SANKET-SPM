@@ -1,7 +1,7 @@
 // googlesheet.js (Updated on 23-July-2025)
 
 async function sendDataToGoogleSheet(data) {
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxrW5C-pW1z2TXxMkvUWE3BLJkEzg7EDdPVgLkQ08f99ByNU5GgqgwcN2Iq9Z_m6Gfp/exec';
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbwjofnu1yAXI2KMzfn7Ypdh1_RbNrRmheAAsqDxo-3aK9WF_lcvPf1F8nzV--C4Nay6/exec';
 
     // General CLI Observation
     data.cliObservation = document.getElementById('cliRemarks').value.trim();
