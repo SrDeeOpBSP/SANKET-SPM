@@ -582,89 +582,96 @@ if (isNewFormat) {
                     console.warn('No zero-speed events (9G) found in SPM file.');
                 }
 
-                stops = stops.map(stop => {
-                    const stopDistance = stop.kilometer;
-                    let stopLocation = '';
-                    let startTiming = null;
+                // --- START: MODIFIED STOP PROCESSING WITH DURATION FILTER ---
 
-                    const atStationOrSignal = window.stationSignalData.find(row => {
-                        if (row['SECTION'] !== section) return false;
-                        const signalDistance = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDistance;
-                        const rangeStart = signalDistance - 200;
-                        const rangeEnd = signalDistance + 200;
-                        return stopDistance >= rangeStart && stopDistance <= rangeEnd;
-                    });
+// 1. Process potential stops to calculate duration and other details.
+let processedStops = stops.map(stop => {
+    const stopDistance = stop.kilometer;
+    let stopLocation = '';
+    let startTiming = null;
+    let startTimeObject = null; // Used to calculate duration
 
-                    if (atStationOrSignal) {
-                        stopLocation = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME']}`;
-                    } else {
-                        let sectionStart = null;
-                        let sectionEnd = null;
-                        for (let i = 0; i < normalizedStations.length - 1; i++) {
-                            const startStation = normalizedStations[i];
-                            const endStation = normalizedStations[i + 1];
-                            if (stopDistance >= startStation.distance && stopDistance < endStation.distance) {
-                                sectionStart = startStation.name;
-                                sectionEnd = endStation.name;
-                                break;
-                            }
-                        }
-                        stopLocation = sectionStart && sectionEnd ? `${sectionStart}-${sectionEnd}` : 'Unknown Section';
-                    }
+    const atStationOrSignal = window.stationSignalData.find(row => {
+        if (row['SECTION'] !== section) return false;
+        const signalDistance = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDistance;
+        const rangeStart = signalDistance - 400;
+        const rangeEnd = signalDistance + 400;
+        return stopDistance >= rangeStart && stopDistance <= rangeEnd;
+    });
 
-                    const stopIndex = stop.index;
-                    for (let i = stopIndex + 1; i < normalizedData.length; i++) {
-                        const currentSpeed = normalizedData[i].Speed;
-                        const currentTime = new Date(normalizedData[i].Time);
-                        if (currentSpeed > 0 && currentTime > stop.time) {
-                            startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                            break;
-                        }
-                    }
+    if (atStationOrSignal) {
+        stopLocation = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
+    } else {
+        let sectionStart = null, sectionEnd = null;
+        for (let i = 0; i < normalizedStations.length - 1; i++) {
+            const startStation = normalizedStations[i];
+            const endStation = normalizedStations[i + 1];
+            if (stopDistance >= startStation.distance && stopDistance < endStation.distance) {
+                sectionStart = startStation.name;
+                sectionEnd = endStation.name;
+                break;
+            }
+        }
+        stopLocation = sectionStart && sectionEnd ? `${sectionStart}-${sectionEnd}` : 'Unknown Section';
+    }
 
-                    const distancesBefore = [800, 500, 100, 50];
-                    const speedsBefore = distancesBefore.map(targetDistance => {
-                        let closestRow = null;
-                        let minDistanceDiff = Infinity;
+    const stopIndex = stop.index;
+    for (let i = stopIndex + 1; i < normalizedData.length; i++) {
+        const currentSpeed = normalizedData[i].Speed;
+        const currentTime = new Date(normalizedData[i].Time);
+        if (currentSpeed > 0 && currentTime > stop.time) {
+            startTimeObject = currentTime;
+            startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+            break;
+        }
+    }
+    
+    // Calculate duration in seconds
+    const duration = startTimeObject ? (startTimeObject.getTime() - stop.time.getTime()) / 1000 : 0;
 
-                        for (let i = stop.index; i >= 0; i--) {
-                            const row = normalizedData[i];
-                            const distanceDiff = stop.kilometer - row.Distance;
-                            if (distanceDiff >= targetDistance) {
-                                const absDiff = Math.abs(distanceDiff - targetDistance);
-                                if (absDiff < minDistanceDiff) {
-                                    minDistanceDiff = absDiff;
-                                    closestRow = row;
-                                }
-                            }
-                        }
+    const distancesBefore = [800, 500, 100, 50];
+    const speedsBefore = distancesBefore.map(targetDistance => {
+        let closestRow = null;
+        let minDistanceDiff = Infinity;
+        for (let i = stop.index; i >= 0; i--) {
+            const row = normalizedData[i];
+            const distanceDiff = stop.kilometer - row.Distance;
+            if (distanceDiff >= targetDistance) {
+                const absDiff = Math.abs(distanceDiff - targetDistance);
+                if (absDiff < minDistanceDiff) {
+                    minDistanceDiff = absDiff;
+                    closestRow = row;
+                }
+            }
+        }
+        return closestRow ? closestRow.Speed.toFixed(2) : 'N/A';
+    });
 
-                        return closestRow ? closestRow.Speed.toFixed(2) : 'N/A';
-                    });
+    const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
+    let isSmooth;
+    if (rakeType === 'COACHING' || rakeType === 'MEMU') {
+        isSmooth = speed800m <= 60 && speed500m <= 45 && speed100m <= 20 && speed50m <= 10;
+    } else if (rakeType === 'GOODS') {
+        isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 5;
+    } else {
+        isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
+    }
+    const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
 
-                    const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
-                     let isSmooth;
-                         if (rakeType === 'COACHING' || rakeType === 'MEMU') {
-                          isSmooth = speed800m <= 60 && speed500m <= 45 && speed100m <= 20 && speed50m <= 10;
-                          } else if (rakeType === 'GOODS') {
-                          isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 5;
-                          } else {
-                          // Agar koi aur type ho to default logic
-                          isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
-                          }
+    return { ...stop, stopLocation, startTiming: startTiming || 'N/A', duration, speedsBefore, brakingTechnique };
+});
 
-                           const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
+// 2. CRITICAL CHANGE: Re-assign the 'stops' array to only include stops with a duration of 10 seconds or more.
+stops = processedStops.filter(stop => stop.duration >= 10);
 
-                           return {
-                        ...stop,
-                        stopLocation,
-                        startTiming: startTiming || 'N/A',
-                        speedsBefore,
-                        brakingTechnique
-                    };
-                });
+// 3. Re-assign group numbers for the filtered stops.
+stops.forEach((stop, index) => {
+    stop.group = index + 1;
+});
 
-                console.log('Enhanced Stops:', stops);
+console.log('Final count of stops (duration >= 10s):', stops.length);
+
+// --- END: MODIFIED STOP PROCESSING WITH DURATION FILTER ---
 
               const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
                     const startSpeed = data[startIdx].Speed;
