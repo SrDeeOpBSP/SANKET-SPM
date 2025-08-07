@@ -594,8 +594,8 @@ let processedStops = stops.map(stop => {
     const atStationOrSignal = window.stationSignalData.find(row => {
         if (row['SECTION'] !== section) return false;
         const signalDistance = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDistance;
-        const rangeStart = signalDistance - 200;
-        const rangeEnd = signalDistance + 200;
+        const rangeStart = signalDistance - 400;
+        const rangeEnd = signalDistance + 400;
         return stopDistance >= rangeStart && stopDistance <= rangeEnd;
     });
 
@@ -650,11 +650,11 @@ let processedStops = stops.map(stop => {
     const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
     let isSmooth;
     if (rakeType === 'COACHING' || rakeType === 'MEMU') {
-        isSmooth = speed800m <= 60 && speed500m <= 45 && speed100m <= 20 && speed50m <= 10;
+        isSmooth = speed800m <= 60 && speed500m <= 45 && speed100m <= 20 && speed50m <= 20;
     } else if (rakeType === 'GOODS') {
-        isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 5;
+        isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 10;
     } else {
-        isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
+        isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 20;
     }
     const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
 

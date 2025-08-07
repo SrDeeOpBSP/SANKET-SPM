@@ -252,40 +252,42 @@
                 </table>
             `;
 
-            // Driving Analysis
-            document.getElementById('driving-analysis').innerHTML = `
-                <h2>Driving Analysis</h2>
-                ${reportData.stops?.length > 0 ? `
-                    <table class="report-table">
+            // Driving Analysis (MODIFIED SECTION)
+        document.getElementById('driving-analysis').innerHTML = `
+            <h2>Driving Analysis</h2>
+            ${reportData.stops?.length > 0 ? `
+                <table class="report-table">
+                    <tr>
+                        <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
+                        <th>800m</th><th>500m</th><th>100m</th><th>50m</th>
+                        <th>System Generated Analysis</th>
+                        <th>CLI Remark</th>
+                    </tr>
+                    ${reportData.stops.map((stop, index) => `
                         <tr>
-                            <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
-                            <th>800m</th><th>500m</th><th>100m</th><th>50m</th><th>System Generated Analysis</th><th>CLI Analysis</th>
+                            <td>${stop.group}</td>
+                            <td>${stop.stopLocation}</td>
+                            <td>${stop.timeString}</td>
+                            <td>${stop.startTiming}</td>
+                            <td>${(stop.kilometer / 1000).toFixed(2)}</td>
+                            <td>${stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A'}</td>
+                            <td>${stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A'}</td>
+                            <td>${stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A'}</td>
+                            <td>${stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A'}</td>
+                            <td class="system-analysis">
+                                <select class="cli-analysis system-analysis-dropdown" data-stop-index="${index}">
+                                    <option value="Smooth" ${stop.brakingTechnique === 'Smooth' ? 'selected' : ''}>Smooth</option>
+                                    <option value="Late" ${stop.brakingTechnique === 'Late' ? 'selected' : ''}>Late</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="cli-remark-input-row" data-stop-index="${index}" placeholder="Enter remark..." style="width: 95%;">
+                            </td>
                         </tr>
-                        ${reportData.stops.map((stop, index) => `
-                            <tr>
-                                <td>${stop.group}</td>
-                                <td>${stop.stopLocation}</td>
-                                <td>${stop.timeString}</td>
-                                <td>${stop.startTiming}</td>
-                                <td>${(stop.kilometer / 1000).toFixed(2)}</td>
-                                <td>${stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A'}</td>
-                                <td>${stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A'}</td>
-                                <td>${stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A'}</td>
-                                <td>${stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A'}</td>
-                                <td class="system-analysis">${stop.brakingTechnique}</td>
-                                <td>
-                                    <select class="cli-analysis" data-stop-index="${index}">
-                                        <option value="Justified">Justified</option>
-                                        <option value="Not Justified">Not Justified</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </table>
-                ` : '<p>No stops found in the selected range.</p>'}
-            `;
-
+                    `).join('')}
+                </table>
+            ` : '<p>No stops found in the selected range.</p>'}
+        `;
             // Station Timings
             document.getElementById('station-timings').innerHTML = `
                 <h2>Station Timings</h2>
@@ -742,7 +744,7 @@
                 y += 10;
 
                 if (reportData.stops?.length > 0) {
-                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed800m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 30, cliAnalysis: 20 };
+                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed800m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 20, cliRemark: 30 };
                     const totalTableWidthStops = Object.values(colWidthsStops).reduce((a, b) => a + b, 0);
                     doc.setFontSize(10);
                     doc.setFillColor(0, 51, 102);
@@ -759,7 +761,7 @@
                         '100m',
                         '50m',
                         'System Generated Analysis',
-                        'CLI Analysis'
+                        'CLI Remark'
                     ];
                     const headerLines = headers.map((header, idx) => wrapText(header, Object.values(colWidthsStops)[idx] - 2, 10));
                     const maxHeaderLines = Math.max(...headerLines.map(lines => lines.length));
@@ -794,20 +796,31 @@
                     doc.setTextColor(0, 0, 0);
                     doc.setFont('helvetica', 'normal');
                     const cliAnalysisSelections = Array.from(document.querySelectorAll('.cli-analysis')).map(select => select.value);
-                    reportData.stops.forEach((stop, index) => {
-                        const rowData = [
-                            `${stop.group}`,
-                            stop.stopLocation,
-                            stop.timeString,
-                            stop.startTiming,
-                            `${(stop.kilometer / 1000).toFixed(3)}`,
-                            stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A',
-                            stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A',
-                            stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A',
-                            stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A',
-                            stop.brakingTechnique,
-                            cliAnalysisSelections[index] || 'Justified'
-                        ];
+                   reportData.stops.forEach((stop, index) => {
+    // --- YEH NAYA CODE HAI ---
+    // "System Analysis" dropdown se current value uthao
+    const systemAnalysisSelect = document.querySelector(`.system-analysis-dropdown[data-stop-index="${index}"]`);
+    const finalSystemAnalysis = systemAnalysisSelect ? systemAnalysisSelect.value : stop.brakingTechnique;
+
+    // "CLI Remark" input field se current value uthao
+    const cliRemarkInput = document.querySelector(`.cli-remark-input-row[data-stop-index="${index}"]`);
+    const cliRemark = cliRemarkInput ? cliRemarkInput.value.trim() : 'NA';
+    // --- NAYA CODE YAHAN KHATAM ---
+
+    // ab rowData ko nayi values ke saath banao
+    const rowData = [
+        `${stop.group}`,
+        stop.stopLocation,
+        stop.timeString,
+        stop.startTiming,
+        `${(stop.kilometer / 1000).toFixed(3)}`,
+        stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A',
+        stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A',
+        stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A',
+        stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A',
+        finalSystemAnalysis, // Yahan badlav hua hai
+        cliRemark             // Yahan badlav hua hai
+    ];
                         const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsStops)[idx] - 2, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 5;
