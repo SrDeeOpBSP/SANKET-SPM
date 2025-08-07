@@ -594,8 +594,8 @@ let processedStops = stops.map(stop => {
     const atStationOrSignal = window.stationSignalData.find(row => {
         if (row['SECTION'] !== section) return false;
         const signalDistance = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDistance;
-        const rangeStart = signalDistance - 400;
-        const rangeEnd = signalDistance + 400;
+        const rangeStart = signalDistance - 200;
+        const rangeEnd = signalDistance + 200;
         return stopDistance >= rangeStart && stopDistance <= rangeEnd;
     });
 
