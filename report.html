@@ -99,6 +99,7 @@
             <button class="tab-button" data-tab="speed-distance">Speed vs. Distance</button>
             <button class="tab-button" data-tab="station-timings">Station Timings</button>
             <button class="tab-button" data-tab="speed-time">Speed vs. Time</button>
+             <button class="tab-button" data-tab="speed-range-summary">Speed Range Summary</button>
             <button class="tab-button" data-tab="violations">Violations</button>
             <button class="tab-button" data-tab="cli-observation">CLI Observation</button>
         </div>
@@ -111,6 +112,7 @@
             <div id="speed-distance" class="tab-pane"><canvas id="stopChart"></canvas></div>
             <div id="station-timings" class="tab-pane"></div>
             <div id="speed-time" class="tab-pane"><canvas id="speedChart"></canvas></div>
+            <div id="speed-range-summary" class="tab-pane"></div>
             <div id="violations" class="tab-pane"></div>
            <div id="cli-observation" class="tab-pane">
     <h2>CLI Observation</h2>
@@ -301,6 +303,35 @@
                         </tr>
                     `).join('') || '<tr><td colspan="3">No data available</td></tr>'}
                 </table>
+            `;
+             // Speed Range Summary
+            document.getElementById('speed-range-summary').innerHTML = `
+                <h2>Distance Covered During Speed Range</h2>
+                ${reportData.speedRangeSummary?.length > 0 ? `
+                    <table class="report-table">
+                        <tr><th>Speed Range</th><th>Distance Covered (KM)</th></tr>
+                        ${reportData.speedRangeSummary.map(detail => `
+                            <tr>
+                                <td>${detail.speedRange}</td>
+                                <td>${detail.distance}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                ` : '<p>No data available for speed range summary.</p>'}
+
+                <h2 style="margin-top: 30px;">Average Speed Summary</h2>
+                ${reportData.sectionSpeedSummary?.length > 0 ? `
+                    <table class="report-table">
+                        <tr><th>Section</th><th>Mode Speed (Kmph)</th><th>Average Speed (Kmph)</th></tr>
+                        ${reportData.sectionSpeedSummary.map(detail => `
+                            <tr>
+                                <td>${detail.section}</td>
+                                <td>${detail.modeSpeed}</td>
+                                <td>${detail.averageSpeed}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                ` : '<p>No data available for average speed summary.</p>'}
             `;
 
             // Violations
@@ -953,7 +984,57 @@
                     doc.text('No data available for the speed graph.', margin, y);
                     y += 10;
                 }
+                 doc.addPage();
+            y = margin;
 
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            y = checkPageOverflow(y, 10);
+            doc.text('Distance Covered During Speed Range', margin, y);
+            y += 10;
+            
+            // First table
+            if (reportData.speedRangeSummary?.length > 0) {
+                const speedRangeHeaders = [['Speed Range', 'Distance Covered (KM)']];
+                const speedRangeBody = reportData.speedRangeSummary.map(d => [d.speedRange, d.distance]);
+                
+                doc.autoTable({
+                    head: speedRangeHeaders,
+                    body: speedRangeBody,
+                    startY: y,
+                    theme: 'grid',
+                    headStyles: { fillColor: [0, 51, 102] }
+                });
+                y = doc.lastAutoTable.finalY + 10;
+            } else {
+                doc.text('No data for speed range summary.', margin, y);
+                y += 10;
+            }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            y = checkPageOverflow(y, 20); // Extra space before next table
+            doc.text('Average Speed Summary', margin, y);
+            y += 10;
+            
+            // Second table
+            if (reportData.sectionSpeedSummary?.length > 0) {
+                const sectionSpeedHeaders = [['Section', 'Mode Speed (Kmph)', 'Average Speed (Kmph)']];
+                const sectionSpeedBody = reportData.sectionSpeedSummary.map(d => [d.section, d.modeSpeed, d.averageSpeed]);
+
+                doc.autoTable({
+                    head: sectionSpeedHeaders,
+                    body: sectionSpeedBody,
+                    startY: y,
+                    theme: 'grid',
+                    headStyles: { fillColor: [0, 51, 102] }
+                });
+                y = doc.lastAutoTable.finalY + 10;
+            } else {
+                doc.text('No data for average speed summary.', margin, y);
+                y+=10;
+            }
                doc.addPage();
                y = margin;
                 doc.setFont('helvetica', 'bold');
