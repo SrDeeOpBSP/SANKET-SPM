@@ -7,7 +7,6 @@
     <link href="report.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         .loading-overlay {
             display: flex;
@@ -100,7 +99,6 @@
             <button class="tab-button" data-tab="speed-distance">Speed vs. Distance</button>
             <button class="tab-button" data-tab="station-timings">Station Timings</button>
             <button class="tab-button" data-tab="speed-time">Speed vs. Time</button>
-             <button class="tab-button" data-tab="speed-range-summary">Speed Range Summary</button>
             <button class="tab-button" data-tab="violations">Violations</button>
             <button class="tab-button" data-tab="cli-observation">CLI Observation</button>
         </div>
@@ -113,7 +111,6 @@
             <div id="speed-distance" class="tab-pane"><canvas id="stopChart"></canvas></div>
             <div id="station-timings" class="tab-pane"></div>
             <div id="speed-time" class="tab-pane"><canvas id="speedChart"></canvas></div>
-            <div id="speed-range-summary" class="tab-pane"></div>
             <div id="violations" class="tab-pane"></div>
            <div id="cli-observation" class="tab-pane">
     <h2>CLI Observation</h2>
@@ -255,42 +252,40 @@
                 </table>
             `;
 
-            // Driving Analysis (MODIFIED SECTION)
-        document.getElementById('driving-analysis').innerHTML = `
-            <h2>Driving Analysis</h2>
-            ${reportData.stops?.length > 0 ? `
-                <table class="report-table">
-                    <tr>
-                        <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
-                        <th>800m</th><th>500m</th><th>100m</th><th>50m</th>
-                        <th>System Generated Analysis</th>
-                        <th>CLI Remark</th>
-                    </tr>
-                    ${reportData.stops.map((stop, index) => `
+            // Driving Analysis
+            document.getElementById('driving-analysis').innerHTML = `
+                <h2>Driving Analysis</h2>
+                ${reportData.stops?.length > 0 ? `
+                    <table class="report-table">
                         <tr>
-                            <td>${stop.group}</td>
-                            <td>${stop.stopLocation}</td>
-                            <td>${stop.timeString}</td>
-                            <td>${stop.startTiming}</td>
-                            <td>${(stop.kilometer / 1000).toFixed(2)}</td>
-                            <td>${stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A'}</td>
-                            <td>${stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A'}</td>
-                            <td>${stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A'}</td>
-                            <td>${stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A'}</td>
-                            <td class="system-analysis">
-                                <select class="cli-analysis system-analysis-dropdown" data-stop-index="${index}">
-                                    <option value="Smooth" ${stop.brakingTechnique === 'Smooth' ? 'selected' : ''}>Smooth</option>
-                                    <option value="Late" ${stop.brakingTechnique === 'Late' ? 'selected' : ''}>Late</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input type="text" class="cli-remark-input-row" data-stop-index="${index}" placeholder="Enter remark..." style="width: 95%;">
-                            </td>
+                            <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
+                            <th>800m</th><th>500m</th><th>100m</th><th>50m</th><th>System Generated Analysis</th><th>CLI Analysis</th>
                         </tr>
-                    `).join('')}
-                </table>
-            ` : '<p>No stops found in the selected range.</p>'}
-        `;
+                        ${reportData.stops.map((stop, index) => `
+                            <tr>
+                                <td>${stop.group}</td>
+                                <td>${stop.stopLocation}</td>
+                                <td>${stop.timeString}</td>
+                                <td>${stop.startTiming}</td>
+                                <td>${(stop.kilometer / 1000).toFixed(2)}</td>
+                                <td>${stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A'}</td>
+                                <td>${stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A'}</td>
+                                <td>${stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A'}</td>
+                                <td>${stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A'}</td>
+                                <td class="system-analysis">${stop.brakingTechnique}</td>
+                                <td>
+                                    <select class="cli-analysis" data-stop-index="${index}">
+                                        <option value="Justified">Justified</option>
+                                        <option value="Not Justified">Not Justified</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                ` : '<p>No stops found in the selected range.</p>'}
+            `;
+
             // Station Timings
             document.getElementById('station-timings').innerHTML = `
                 <h2>Station Timings</h2>
@@ -304,35 +299,6 @@
                         </tr>
                     `).join('') || '<tr><td colspan="3">No data available</td></tr>'}
                 </table>
-            `;
-             // Speed Range Summary
-            document.getElementById('speed-range-summary').innerHTML = `
-                <h2>Distance Covered During Speed Range</h2>
-                ${reportData.speedRangeSummary?.length > 0 ? `
-                    <table class="report-table">
-                        <tr><th>Speed Range</th><th>Distance Covered (KM)</th></tr>
-                        ${reportData.speedRangeSummary.map(detail => `
-                            <tr>
-                                <td>${detail.speedRange}</td>
-                                <td>${detail.distance}</td>
-                            </tr>
-                        `).join('')}
-                    </table>
-                ` : '<p>No data available for speed range summary.</p>'}
-
-                <h2 style="margin-top: 30px;">Average Speed Summary</h2>
-                ${reportData.sectionSpeedSummary?.length > 0 ? `
-                    <table class="report-table">
-                        <tr><th>Section</th><th>Mode Speed (Kmph)</th><th>Average Speed (Kmph)</th></tr>
-                        ${reportData.sectionSpeedSummary.map(detail => `
-                            <tr>
-                                <td>${detail.section}</td>
-                                <td>${detail.modeSpeed}</td>
-                                <td>${detail.averageSpeed}</td>
-                            </tr>
-                        `).join('')}
-                    </table>
-                ` : '<p>No data available for average speed summary.</p>'}
             `;
 
             // Violations
@@ -776,7 +742,7 @@
                 y += 10;
 
                 if (reportData.stops?.length > 0) {
-                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed800m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 20, cliRemark: 30 };
+                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed800m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 30, cliAnalysis: 20 };
                     const totalTableWidthStops = Object.values(colWidthsStops).reduce((a, b) => a + b, 0);
                     doc.setFontSize(10);
                     doc.setFillColor(0, 51, 102);
@@ -793,7 +759,7 @@
                         '100m',
                         '50m',
                         'System Generated Analysis',
-                        'CLI Remark'
+                        'CLI Analysis'
                     ];
                     const headerLines = headers.map((header, idx) => wrapText(header, Object.values(colWidthsStops)[idx] - 2, 10));
                     const maxHeaderLines = Math.max(...headerLines.map(lines => lines.length));
@@ -828,31 +794,20 @@
                     doc.setTextColor(0, 0, 0);
                     doc.setFont('helvetica', 'normal');
                     const cliAnalysisSelections = Array.from(document.querySelectorAll('.cli-analysis')).map(select => select.value);
-                   reportData.stops.forEach((stop, index) => {
-    // --- YEH NAYA CODE HAI ---
-    // "System Analysis" dropdown se current value uthao
-    const systemAnalysisSelect = document.querySelector(`.system-analysis-dropdown[data-stop-index="${index}"]`);
-    const finalSystemAnalysis = systemAnalysisSelect ? systemAnalysisSelect.value : stop.brakingTechnique;
-
-    // "CLI Remark" input field se current value uthao
-    const cliRemarkInput = document.querySelector(`.cli-remark-input-row[data-stop-index="${index}"]`);
-    const cliRemark = cliRemarkInput ? cliRemarkInput.value.trim() : 'NA';
-    // --- NAYA CODE YAHAN KHATAM ---
-
-    // ab rowData ko nayi values ke saath banao
-    const rowData = [
-        `${stop.group}`,
-        stop.stopLocation,
-        stop.timeString,
-        stop.startTiming,
-        `${(stop.kilometer / 1000).toFixed(3)}`,
-        stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A',
-        stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A',
-        stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A',
-        stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A',
-        finalSystemAnalysis, // Yahan badlav hua hai
-        cliRemark             // Yahan badlav hua hai
-    ];
+                    reportData.stops.forEach((stop, index) => {
+                        const rowData = [
+                            `${stop.group}`,
+                            stop.stopLocation,
+                            stop.timeString,
+                            stop.startTiming,
+                            `${(stop.kilometer / 1000).toFixed(3)}`,
+                            stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A',
+                            stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A',
+                            stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A',
+                            stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A',
+                            stop.brakingTechnique,
+                            cliAnalysisSelections[index] || 'Justified'
+                        ];
                         const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsStops)[idx] - 2, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 5;
@@ -985,57 +940,7 @@
                     doc.text('No data available for the speed graph.', margin, y);
                     y += 10;
                 }
-                 doc.addPage();
-            y = margin;
 
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.setTextColor(0, 0, 0);
-            y = checkPageOverflow(y, 10);
-            doc.text('Distance Covered During Speed Range', margin, y);
-            y += 10;
-            
-            // First table
-            if (reportData.speedRangeSummary?.length > 0) {
-                const speedRangeHeaders = [['Speed Range', 'Distance Covered (KM)']];
-                const speedRangeBody = reportData.speedRangeSummary.map(d => [d.speedRange, d.distance]);
-                
-                doc.autoTable({
-                    head: speedRangeHeaders,
-                    body: speedRangeBody,
-                    startY: y,
-                    theme: 'grid',
-                    headStyles: { fillColor: [0, 51, 102] }
-                });
-                y = doc.lastAutoTable.finalY + 10;
-            } else {
-                doc.text('No data for speed range summary.', margin, y);
-                y += 10;
-            }
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            y = checkPageOverflow(y, 20); // Extra space before next table
-            doc.text('Average Speed Summary', margin, y);
-            y += 10;
-            
-            // Second table
-            if (reportData.sectionSpeedSummary?.length > 0) {
-                const sectionSpeedHeaders = [['Section', 'Mode Speed (Kmph)', 'Average Speed (Kmph)']];
-                const sectionSpeedBody = reportData.sectionSpeedSummary.map(d => [d.section, d.modeSpeed, d.averageSpeed]);
-
-                doc.autoTable({
-                    head: sectionSpeedHeaders,
-                    body: sectionSpeedBody,
-                    startY: y,
-                    theme: 'grid',
-                    headStyles: { fillColor: [0, 51, 102] }
-                });
-                y = doc.lastAutoTable.finalY + 10;
-            } else {
-                doc.text('No data for average speed summary.', margin, y);
-                y+=10;
-            }
                doc.addPage();
                y = margin;
                 doc.setFont('helvetica', 'bold');
