@@ -526,6 +526,160 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
             console.log('Wheel Slip Details:', wheelSlipDetails);
             console.log('Wheel Skid Details:', wheelSkidDetails);
+            // --- START: NEW SPEED ANALYSIS FUNCTIONS ---
+
+           /**
+             * Rake type ke aadhar par speed range mein tay ki gayi doori, percentage, aur कुल doori ka hisab lagata hai.
+             * AT MPS (Maximum Permissible Speed) ke liye ek alag row bhi add karta hai.
+             * @param {Array} data - Normalized data array.
+             * @param {string} rakeType - 'COACHING' ya 'GOODS'.
+             * @param {number} maxPermissibleSpeed - Form se select ki gayi MPS.
+             * @returns {Object} Jisme summary array aur total distance ho.
+             */
+            const calculateSpeedRangeSummary = (data, rakeType, maxPermissibleSpeed) => {
+                const ranges = rakeType === 'COACHING'
+                    ? {
+                        'Above 130 Kmph': val => val > 130,
+                        '125-130 Kmph': val => val >= 125 && val <= 130,
+                        '120-125 Kmph': val => val >= 120 && val < 125,
+                        '110-120 Kmph': val => val >= 110 && val < 120,
+                        '90-110 Kmph': val => val >= 90 && val < 110,
+                        'Below 90 Kmph': val => val < 90
+                      }
+                    : { // GOODS
+                        'Above 80 Kmph': val => val > 80,
+                        '75-80 Kmph': val => val >= 75 && val <= 80,
+                        '70-75 Kmph': val => val >= 70 && val < 75,
+                        '65-70 Kmph': val => val >= 65 && val < 70,
+                        '60-65 Kmph': val => val >= 60 && val < 65,
+                        '55-60 Kmph': val => val >= 55 && val < 60,
+                        '50-55 Kmph': val => val >= 50 && val < 55,
+                        '40-50 Kmph': val => val >= 40 && val < 50,
+                        'Below 40 Kmph': val => val < 40
+                      };
+
+                const distanceByRange = Object.keys(ranges).reduce((acc, key) => {
+                    acc[key] = 0;
+                    return acc;
+                }, {});
+                
+                let totalDistance = 0;
+                let distanceAtMPS = 0; // MPS par doori ke liye naya variable
+
+                for (let i = 1; i < data.length; i++) {
+                    const prevPoint = data[i - 1];
+                    const currPoint = data[i];
+
+                    const distanceDiff = Math.abs(currPoint.Distance - prevPoint.Distance);
+                    if (distanceDiff > 0) {
+                        totalDistance += distanceDiff;
+                        const avgSpeed = (prevPoint.Speed + currPoint.Speed) / 2;
+                        
+                        // Check karein agar speed MPS ke barabar hai
+                        if (Math.round(avgSpeed) === maxPermissibleSpeed) {
+                            distanceAtMPS += distanceDiff;
+                        }
+
+                        for (const rangeName in ranges) {
+                            if (ranges[rangeName](avgSpeed)) {
+                                distanceByRange[rangeName] += distanceDiff;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                const summary = Object.entries(distanceByRange).map(([range, distance]) => ({
+                    speedRange: range,
+                    distance: (distance / 1000).toFixed(2),
+                    percentage: totalDistance > 0 ? ((distance / totalDistance) * 100).toFixed(2) : '0.00'
+                }));
+                
+                // AT MPS wali row ko summary list mein sabse upar add karein
+                summary.unshift({
+                    speedRange: `<strong>AT MPS (${maxPermissibleSpeed} Kmph)</strong>`,
+                    distance: (distanceAtMPS / 1000).toFixed(2),
+                    percentage: totalDistance > 0 ? ((distanceAtMPS / totalDistance) * 100).toFixed(2) : '0.00'
+                });
+
+                return {
+                    summary,
+                    totalDistance: (totalDistance / 1000).toFixed(2)
+                };
+            };
+
+            /**
+             * Har station section ke liye average, mode, aur maximum speed nikalta hai.
+             * @param {Array} data - Normalized data array.
+             * @param {Array} stations - Normalized stations array.
+             * @param {string} fromStn - Shuruaati station ka code.
+             * @param {string} toStn - Antim station ka code.
+             * @returns {Array} Section, mode speed, max speed, aur average speed ka array.
+             */
+            const calculateSectionSpeedSummary = (data, stations, fromStn, toStn) => {
+                const summary = [];
+                // Beech ke sections
+                for (let i = 0; i < stations.length - 1; i++) {
+                    const startStation = stations[i];
+                    const endStation = stations[i + 1];
+                    const sectionName = `${startStation.name}-${endStation.name}`;
+
+                    const sectionData = data.filter(d => d.Distance >= startStation.distance && d.Distance < endStation.distance);
+                    
+                    if (sectionData.length > 0) {
+                        const speeds = sectionData.map(d => d.Speed).filter(s => s > 0);
+                        
+                        // Mode Speed Calculate Karein
+                        const freq = {};
+                        let maxFreq = 0;
+                        let modeSpeed = 'N/A';
+                        speeds.forEach(s => {
+                            const speedInt = Math.floor(s);
+                            freq[speedInt] = (freq[speedInt] || 0) + 1;
+                            if (freq[speedInt] > maxFreq) {
+                                maxFreq = freq[speedInt];
+                                modeSpeed = speedInt;
+                            }
+                        });
+                        
+                        // Maximum and Average Speed Calculate Karein
+                        const maxSpeed = speeds.length > 0 ? Math.max(...speeds).toFixed(2) : 'N/A';
+                        const avgSpeed = speeds.length > 0
+                            ? (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(2)
+                            : 'N/A';
+
+                        summary.push({ section: sectionName, modeSpeed, maxSpeed, averageSpeed: avgSpeed });
+                    }
+                }
+
+                // Poore route ka summary
+                const overallSpeeds = data.map(d => d.Speed).filter(s => s > 0);
+                const overallFreq = {};
+                let overallMaxFreq = 0;
+                let overallModeSpeed = 'N/A';
+                overallSpeeds.forEach(s => {
+                    const speedInt = Math.floor(s);
+                    overallFreq[speedInt] = (overallFreq[speedInt] || 0) + 1;
+                    if (overallFreq[speedInt] > overallMaxFreq) {
+                        overallMaxFreq = overallFreq[speedInt];
+                        overallModeSpeed = speedInt;
+                    }
+                });
+                const overallMaxSpeed = overallSpeeds.length > 0 ? Math.max(...overallSpeeds).toFixed(2) : 'N/A';
+                const overallAvgSpeed = overallSpeeds.length > 0
+                    ? (overallSpeeds.reduce((a, b) => a + b, 0) / overallSpeeds.length).toFixed(2)
+                    : 'N/A';
+
+                summary.push({
+                    section: `<strong>${fromStn}-${toStn} (Overall)</strong>`,
+                    modeSpeed: overallModeSpeed,
+                    maxSpeed: overallMaxSpeed,
+                    averageSpeed: overallAvgSpeed
+                });
+
+                return summary;
+            };
+            // --- END: NEW SPEED ANALYSIS FUNCTIONS ---
 
              const analyzeCalls = (calls, designation) => {
                     if (!calls || calls.length === 0) {
@@ -632,92 +786,113 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 stop.group = index + 1;
             });
 
-            console.log('Processed Stops:', stops);
+           console.log('Initial stops found:', stops.length);
 
-            if (stops.length === 0) {
-                console.warn('No stops detected in the SPM data.');
+// --- START: MODIFIED STOP PROCESSING WITH DURATION FILTER ---
+
+// 1. Process all potential stops to calculate their duration.
+const processedStops = stops.map((stop, stopIndex) => { // Added stopIndex here
+    let startTiming = null;
+    let startTimeObject = null; // Used to calculate duration
+
+    const stopDataIndex = stop.index;
+    for (let i = stopDataIndex + 1; i < finalNormalizedData.length; i++) {
+        const currentSpeed = finalNormalizedData[i].Speed;
+        const currentTime = finalNormalizedData[i].Time;
+        if (currentSpeed > 0 && currentTime > stop.time) {
+            startTimeObject = currentTime;
+            startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+            break;
+        }
+    }
+    
+    const duration = startTimeObject ? (startTimeObject.getTime() - stop.time.getTime()) / 1000 : 0;
+    
+    // Check if this is the last stop in the potential stops array
+    const isLastStopOfJourney = (stopIndex === stops.length - 1);
+
+    return { ...stop, startTiming: startTiming || 'N/A', duration, isLastStopOfJourney };
+});
+
+// 2. CRITICAL CHANGE: Re-assign the main 'stops' array to only include stops >= 10 seconds,
+//    OR if it's the last stop of the journey.
+stops = processedStops.filter(stop => stop.duration >= 10 || stop.isLastStopOfJourney);
+
+
+// 3. Re-assign group numbers for the final, filtered list.
+stops.forEach((stop, index) => {
+    stop.group = index + 1;
+});
+
+console.log('Final count of stops (duration >= 10s or last stop):', stops.length);
+
+// 4. Now, enhance the final list of stops with braking analysis.
+const finalStops = stops.map(stop => {
+    const stopDistance = stop.kilometer;
+    let stopLocation = '';
+
+    const atStationOrSignal = window.stationSignalData.find(row => {
+        if (row['SECTION'] !== section) return false;
+        const signalDistance = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDistance;
+        const rangeStart = signalDistance - 400;
+        const rangeEnd = signalDistance + 400;
+        return stopDistance >= rangeStart && stopDistance <= rangeEnd;
+    });
+
+    if (atStationOrSignal) {
+        stopLocation = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
+    } else {
+        let sectionStart = null, sectionEnd = null;
+        for (let i = 0; i < normalizedStations.length - 1; i++) {
+            const startStation = normalizedStations[i];
+            const endStation = normalizedStations[i + 1];
+            if (stopDistance >= startStation.distance && stopDistance < endStation.distance) {
+                sectionStart = startStation.name;
+                sectionEnd = endStation.name;
+                break;
             }
+        }
+        stopLocation = sectionStart && sectionEnd ? `${sectionStart}-${sectionEnd}` : 'Unknown Section';
+    }
 
-            stops = stops.map(stop => {
-                const stopDistance = stop.kilometer;
-                let stopLocation = '';
-                let startTiming = null;
-
-                const atStationOrSignal = window.stationSignalData.find(row => {
-                    if (row['SECTION'] !== section) return false;
-                    const signalDistance = parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDistance;
-                    const rangeStart = signalDistance - 400;
-                    const rangeEnd = signalDistance + 400;
-                    return stopDistance >= rangeStart && stopDistance <= rangeEnd;
-                });
-
-                if (atStationOrSignal) {
-                    stopLocation = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
-                } else {
-                    let sectionStart = null, sectionEnd = null;
-                    for (let i = 0; i < normalizedStations.length - 1; i++) {
-                        const startStation = normalizedStations[i];
-                        const endStation = normalizedStations[i + 1];
-                        if (stopDistance >= startStation.distance && stopDistance < endStation.distance) {
-                            sectionStart = startStation.name;
-                            sectionEnd = endStation.name;
-                            break;
-                        }
-                    }
-                    stopLocation = sectionStart && sectionEnd ? `${sectionStart}-${sectionEnd}` : 'Unknown Section';
+    const distancesBefore = [800, 500, 100, 50];
+    const speedsBefore = distancesBefore.map(targetDistance => {
+        let closestRow = null;
+        let minDistanceDiff = Infinity;
+        for (let i = stop.index; i >= 0; i--) {
+            const row = finalNormalizedData[i];
+            const distanceDiff = stop.kilometer - row.Distance;
+            if (distanceDiff >= targetDistance) {
+                if (Math.abs(distanceDiff - targetDistance) < minDistanceDiff) {
+                    minDistanceDiff = Math.abs(distanceDiff - targetDistance);
+                    closestRow = row;
                 }
+            }
+        }
+        return closestRow ? closestRow.Speed.toFixed(2) : 'N/A';
+    });
+    
+    const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
+    let isSmooth;
+    if (rakeType === 'COACHING' || rakeType === 'MEMU') {
+        isSmooth = speed800m <= 60 && speed500m <= 40 && speed100m <= 20 && speed50m <= 20;
+    } else if (rakeType === 'GOODS') {
+        isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 10;
+    } else {
+        isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 20;
+    }
 
-                const stopIndex = stop.index;
-                for (let i = stopIndex + 1; i < finalNormalizedData.length; i++) {
-                    const currentSpeed = finalNormalizedData[i].Speed;
-                    const currentTime = finalNormalizedData[i].Time;
-                    if (currentSpeed > 0 && currentTime > stop.time) {
-                        startTiming = currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                        break;
-                    }
-                }
+    const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
 
-                const distancesBefore = [800, 500, 100, 50];
-                const speedsBefore = distancesBefore.map(targetDistance => {
-                    let closestRow = null;
-                    let minDistanceDiff = Infinity;
-                    for (let i = stop.index; i >= 0; i--) {
-                        const row = finalNormalizedData[i];
-                        const distanceDiff = stop.kilometer - row.Distance;
-                        if (distanceDiff >= targetDistance) {
-                            const absDiff = Math.abs(distanceDiff - targetDistance);
-                            if (absDiff < minDistanceDiff) {
-                                minDistanceDiff = absDiff;
-                                closestRow = row;
-                            }
-                        }
-                    }
-                    return closestRow ? closestRow.Speed.toFixed(2) : 'N/A';
-                });
+    return { ...stop, stopLocation, speedsBefore, brakingTechnique };
+});
 
-                const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
-                     let isSmooth;
-                         if (rakeType === 'COACHING' || rakeType === 'MEMU') {
-                          isSmooth = speed800m <= 60 && speed500m <= 40 && speed100m <= 20 && speed50m <= 10;
-                          } else if (rakeType === 'GOODS') {
-                          isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 5;
-                          } else {
-                          // Agar koi aur type ho to default logic
-                          isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 10;
-                          }
+// Re-assign stops to the final enhanced version
+stops = finalStops;
 
-                           const brakingTechnique = isSmooth ? 'Smooth' : 'Late';
+console.log('Enhanced Stops:', stops);
 
-                return {
-                    ...stop,
-                    stopLocation,
-                    startTiming: startTiming || 'N/A',
-                    speedsBefore,
-                    brakingTechnique
-                };
-            });
-
-            console.log('Enhanced Stops:', stops);
+// --- END: MODIFIED STOP PROCESSING ---
 
            // --- START: BEHTAR BRAKE TEST LOGIC ---
             const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
@@ -1122,6 +1297,8 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
             });
 
             console.log('Station Stops:', stationStops);
+          const speedRangeSummary = calculateSpeedRangeSummary(finalNormalizedData, rakeType, maxPermissibleSpeed);
+            const sectionSpeedSummary = calculateSectionSpeedSummary(finalNormalizedData, normalizedStations, fromSection, toSection);
 
             const reportData = {
                 trainDetails: [
@@ -1166,6 +1343,8 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 overSpeedDetails,
                 wheelSlipDetails,
                 wheelSkidDetails,
+                speedRangeSummary,     // Yeh line jodein
+                sectionSpeedSummary,   // Yeh line jodein
                 speedChartImage,
                 stopChartImage,
                 speedChartConfig: {

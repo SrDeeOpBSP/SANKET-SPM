@@ -14,54 +14,581 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
     <style>
-        .loading-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .loading-spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #ec0c0c;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .manual-entry-btn {
-            padding: 5px 10px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            background-color: #c82333;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-        }
+/* --- 1. CSS Variables for Theming (Day/Night Mode) --- */
+:root {
+    --bg-gradient: linear-gradient(135deg, #0f172a, #1184f8);
+    --text-color: #f8fafc;
+    --text-muted: #cbd5e1;
+    --accent-color: #00aaff;
+    --accent-glow: rgba(0, 170, 255, 0.5);
+    --border-color: rgba(0, 170, 255, 0.3); 
+    --box-bg: rgba(20, 30, 48, 0.85);
+    --input-bg: #111827; 
+    --success-color: #22c55e;
+    --danger-color: #ef4444;
+    --font-main: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    --h3-highlight-bg: rgba(88, 28, 135, 0.3); /* Dark Purple Glow */
+    --h4-highlight-bg: rgba(17, 94, 89, 0.4);  /* Dark Teal Glow */
+}
+
+body.day-mode {
+    --bg-gradient: linear-gradient(135deg, #82f9bf, #f8f9fa);
+    --text-color: #0c0c0d;
+    --text-muted: #495057;
+    --accent-color: #0056b3;
+    --accent-glow: rgba(0, 86, 179, 0.3);
+    --border-color: rgba(0, 86, 179, 0.5); 
+    --box-bg: rgb(255, 255, 255);
+    --input-bg: #60caffc1;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --h3-highlight-bg: rgba(224, 242, 254, 0.8); /* Light Sky Blue */
+    --h4-highlight-bg: rgba(220, 252, 231, 0.8); /* Light Mint Green */
+}
+
+/* --- 2. General Body and Layout Styles --- */
+body {
+    font-family: var(--font-main);
+    background: var(--bg-gradient);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    transition: background 0.5s, color 0.5s;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    background: transparent;
+    padding: 25px;
+    border-radius: 15px;
+    position: relative;
+}
+
+/* --- 3. Header and Logo --- */
+.logo {
+    display: block;
+    margin: 0 auto 15px auto;
+    width: 300px;
+    height: auto;
+    filter: drop-shadow(0 0 10px var(--accent-glow));
+}
+
+h1 {
+    color: var(--accent-color);
+    text-align: center;
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 15px var(--accent-glow);
+}
+
+h3, h4 {
+    text-align: center;
+    color: var(--text-muted);
+    font-weight: 400; /* h4 ke liye neeche bold kiya gaya hai */
+    margin: 10px auto 25px auto;
+    padding: 8px 15px;
+    border-radius: 8px;
+    max-width: 80%;
+    line-height: 1.5; /* Line-height behtar readability ke liye */
+    border: 1px solid var(--border-color);
+    transition: background-color 0.5s;
+}
+
+h3 {
+    background-color: var(--h3-highlight-bg);
+}
+
+h4 {
+    background-color: var(--h4-highlight-bg);
+    font-weight: 700; /* Bold karne ke liye */
+}
+
+h2 {
+    color: var(--text-color);
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 8px;
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+}
+
+/* --- 4. Form Sections and Boxes --- */
+.form-row {
+    display: flex;
+    gap: 25px;
+    margin-bottom: 25px;
+}
+
+.form-section {
+    flex: 1;
+}
+
+.box {
+    background: var(--box-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    transition: background 0.5s, border 0.5s;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* --- 5. Inputs, Selects, and Buttons --- */
+input[type="text"],
+input[type="datetime-local"],
+input[type="file"],
+select {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    color: var(--text-color);
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+input[readonly] {
+    background-color: rgba(0,0,0,0.2);
+    cursor: not-allowed;
+}
+
+button[type="submit"] {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(45deg, var(--accent-color), var(--success-color));
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.manual-entry-btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.manual-entry-btn:hover {
+    filter: brightness(1.2);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+/* --- 6. Loading Spinner --- */
+.loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid var(--accent-color);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+/* === High-Tech Train Loader CSS === */
+
+.train-loader-container {
+    position: relative;
+    width: 250px;
+    height: 250px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.track {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border: 5px dashed rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+}
+
+/* This arm rotates, carrying the train */
+.train-arm {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    animation: moveOnTrack 4s linear infinite;
+}
+
+/* Keyframes for the arm's rotation */
+@keyframes moveOnTrack {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.train {
+    position: absolute;
+    top: -15px; /* Adjust to place train on the track */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: flex-end; /* Aligns coaches and engine at the bottom */
+    /* Counter-rotation to keep the train upright */
+    animation: stayUpright 4s linear infinite;
+}
+
+/* Keyframes to keep the train from spinning */
+@keyframes stayUpright {
+    from { transform: translateX(-50%) rotate(0deg); }
+    to { transform: translateX(-50%) rotate(-360deg); }
+}
+
+/* Train Parts Styling */
+.engine {
+    position: relative;
+    margin-right: 5px;
+}
+
+.engine-body {
+    width: 60px;
+    height: 30px;
+    background: var(--danger-color, #ec0c0c);
+    border-radius: 5px 5px 0 0;
+    position: relative;
+    z-index: 2;
+}
+/* Wheels for Engine */
+.engine-body::before, .engine-body::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    width: 12px;
+    height: 12px;
+    background: #555;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+}
+.engine-body::before { left: 8px; }
+.engine-body::after { right: 8px; }
+
+
+.engine-cabin {
+    position: absolute;
+    width: 30px;
+    height: 25px;
+    background: var(--accent-color, #00aaff);
+    bottom: 30px;
+    right: 0;
+    border-radius: 5px 5px 0 0;
+    border: 2px solid #fff;
+    z-index: 1;
+}
+
+.coach {
+    width: 50px;
+    height: 28px;
+    background: var(--accent-color, #00aaff);
+    border: 2px solid #fff;
+    border-radius: 3px;
+    margin-left: -4px; /* Slight overlap */
+    position: relative;
+}
+/* Wheels for Coaches */
+.coach::before, .coach::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    width: 10px;
+    height: 10px;
+    background: #555;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+}
+.coach::before { left: 5px; }
+.coach::after { right: 5px; }
+
+/* Smoke Animation */
+.engine-smoke {
+    position: absolute;
+    top: -30px;
+    left: 10px;
+    display: flex;
+}
+.engine-smoke span {
+    display: block;
+    width: 8px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: smokePuff 1s infinite;
+}
+.engine-smoke span:nth-child(2) { animation-delay: 0.2s; }
+.engine-smoke span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes smokePuff {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-20px) scale(2); opacity: 0; }
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- 7. Day/Night Toggle Switch --- */
+.theme-switch-wrapper {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+}
+.theme-switch {
+    display: inline-block;
+    height: 34px;
+    position: relative;
+    width: 60px;
+}
+.theme-switch input {
+    display:none;
+}
+.slider {
+    background-color: #3c4a5f;
+    bottom: 0;
+    cursor: pointer;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: .4s;
+    border-radius: 34px;
+}
+.slider:before {
+    background-color: #fff;
+    bottom: 4px;
+    content: "☀️";
+    height: 26px;
+    left: 4px;
+    position: absolute;
+    transition: .4s;
+    width: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+input:checked + .slider {
+    background-color: var(--accent-color);
+}
+input:checked + .slider:before {
+    transform: translateX(26px);
+    content: "🌙";
+}
+/* === 78th Independence Day Animation === */
+#independence-overlay-78 {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #f0f0f0;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    animation: fadeOutOverlay78 3s forwards 1s;
+}
+
+.background-tiranga {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, #FF9933 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #138808 66.6%);
+    opacity: 0;
+    animation: revealBackground 2s forwards 0.5s;
+}
+.background-tiranga::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 250px;
+    height: 250px;
+    transform: translate(-50%, -50%);
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000080" d="M12,2A10,10 0 1,0 22,12 10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12 8,8 0 0,1 12,4M12,6.08L12.39,6.13L13.5,8.04L15.61,8.5L14.5,10.15L15.3,12.23L13.41,11.54L12,13L10.59,11.54L8.7,12.23L9.5,10.15L8.39,8.5L10.5,8.04L11.61,6.13L12,6.08Z" /></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.1;
+    animation: spinChakra78 20s linear infinite, fadeInChakra 3s forwards 1s;
+}
+
+.content-78 {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    opacity: 0;
+    animation: fadeInContent78 2s forwards 1.5s;
+}
+
+.text-78 {
+    font-size: 18vw;
+    font-weight: 900;
+    color: rgba(0, 0, 128, 0.8); /* Navy Blue */
+    line-height: 1;
+    text-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+}
+
+.sub-text {
+    font-size: 3vw;
+    font-weight: bold;
+    color: #333;
+    margin-top: -2vw;
+    margin-bottom: 2vw;
+}
+
+.content-78 h1 {
+    font-size: 5vw;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: inline-block;
+}
+
+.courtesy-line {
+    font-size: 2.2vw;
+    color: #fff;
+    margin-top: 3vw;
+    font-weight: 500;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
+    letter-spacing: 1px;
+    opacity: 0.9;
+}
+
+/* Keyframes */
+@keyframes fadeOutOverlay78 {
+    0%, 80% { opacity: 1; visibility: visible; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes revealBackground {
+    to { opacity: 1; }
+}
+@keyframes fadeInChakra {
+    to { opacity: 0.1; }
+}
+@keyframes fadeInContent78 {
+    to { opacity: 1; }
+}
+@keyframes spinChakra78 {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .text-78 { font-size: 28vw; }
+    .sub-text { font-size: 6vw; margin-top: -4vw; }
+    .content-78 h1 { font-size: 7vw; }
+    .courtesy-line { 
+        font-size: 3.5vw; 
+        margin-top: 5vw; 
+    }
+}
+/* --- Responsive Design --- */
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+    }
+    .container {
+        padding: 15px;
+    }
+}
     </style>
 </head>
 <body>
+   <div id="independence-overlay-78">
+        <div class="background-tiranga"></div>
+        <div class="content-78">
+            <div class="text-78">78</div>
+            <div class="sub-text">Years of Freedom & Progress</div>
+            <h1>स्वतंत्रता दिवस की<br>हार्दिक शुभकामनाएँ</h1>
+            <div class="courtesy-line">सौजन्य से: विद्युत (परिचालन), बिलासपुर</div>
+        </div>
+    </div>
+
     <div class="container">
         <img src="railway logo.png" alt="Railway Logo" class="logo">
+        <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="checkbox">
+                <input type="checkbox" id="checkbox" />
+                <div class="slider round"></div>
+            </label>
+        </div>
         <h1>SANKET</h1>
         <h3>(SPM Analysis and Navigation KPA Extraction Tool)</h3>
-        <h4>(Designed and Developed by Electrical(OP) Bilaspur S.E.C.Railway)</h4>
+        
+        <h4>
+            (Designed and Developed by Electrical(OP) Bilaspur S.E.C.Railway)
+            <br>
+            (इलेक्ट्रिकल (ओपी), बिलासपुर, द.पू.म. रेलवे द्वारा)
+        </h4>
+        
         <form id="spmForm">
             <div class="form-row">
                 <div class="form-section">
@@ -164,6 +691,7 @@
                                 <option value="115">115 kmph</option>
                                 <option value="120">120 kmph</option>
                                 <option value="125">125 kmph</option>
+                                <option value="129">129 kmph</option>
                                 <option value="130">130 kmph</option>
                             </select>
                         </div>
@@ -194,172 +722,187 @@
                 </div>
             </div>
             <div class="form-section">
-    <h2>ANALYSIS DETAILS</h2>
-    <div class="box">
-        <div class="form-group">
-            <label for="spmType">Type of SPM</label>
-            <select id="spmType" name="spmType" required>
-                <option value="" disabled selected>Select SPM Type</option>
-                <option value="Laxven">Laxven</option>
-                <option value="Medha">Medha</option>
-                <option value="Telpro">Telpro</option>
-                <option value="MR">MR</option>
-                <option value="VEL">VEL</option>
-            </select>
-        </div>
-
-               <div class="form-group">
-    <label for="cliName">CLI NAME (Analysis and Ambush done by)</label>
-    <select id="cliName" name="cliName" required>
-        <option value="" selected disabled>-- Select a Name --</option>
-        
-        <option value="A.N.PANDEY">A.N.PANDEY</option>
-            <option value="ABDUL SAMAD GHAURI">ABDUL SAMAD GHAURI</option>
-            <option value="ADESH SHUKLA">ADESH SHUKLA</option>
-            <option value="ANIL KUMAR">ANIL KUMAR</option>
-            <option value="ASHOK KUMAR">ASHOK KUMAR</option>
-            <option value="ASHOK KUMAR MISHRA">ASHOK KUMAR MISHRA</option>
-            <option value="B BHARADWAJ">B BHARADWAJ</option>
-            <option value="B G RAHULAN">B G RAHULAN</option>
-            <option value="BHASKAR SAHOO">BHASKAR SAHOO</option>
-            <option value="BHAWANAND GOPE">BHAWANAND GOPE</option>
-            <option value="BIDHAN CHANDRA ROY">BIDHAN CHANDRA ROY</option>
-            <option value="BRIJ BHUSHAN SINGH">BRIJ BHUSHAN SINGH</option>
-            <option value="BRIJESH SHARMA">BRIJESH SHARMA</option>
-            <option value="CHAKRESH KUMAR">CHAKRESH KUMAR</option>
-            <option value="CHAMAN LAL">CHAMAN LAL</option>
-            <option value="CHANDRA PRAKASH RATHORE">CHANDRA PRAKASH RATHORE</option>
-            <option value="CHANDRA SHEKHAR SONI">CHANDRA SHEKHAR SONI</option>
-            <option value="CHANDRASHEKHAR">CHANDRASHEKHAR</option>
-            <option value="D.K.RAY">D.K.RAY</option>
-            <option value="D.S.PAIKRA">D.S.PAIKRA</option>
-            <option value="D.SANGA">D.SANGA</option>
-            <option value="DAYARAM PASWAN">DAYARAM PASWAN</option>
-            <option value="DHARAM PAL">DHARAM PAL</option>
-            <option value="DILHARAN LAL ADITYA">DILHARAN LAL ADITYA</option>
-            <option value="DINESH KUMAR RAIDAS">DINESH KUMAR RAIDAS</option>
-            <option value="G L TANDON">G L TANDON</option>
-            <option value="G.GOVIND RAO">G.GOVIND RAO</option>
-            <option value="G.N.ORAM">G.N.ORAM</option>
-            <option value="G.P.KASHYAP DSL">G.P.KASHYAP DSL</option>
-            <option value="GAUKARAN KUMBHAKAR">GAUKARAN KUMBHAKAR</option>
-            <option value="GOPAL DAS DSL">GOPAL DAS DSL</option>
-            <option value="GOPI KUMAR KANWAR">GOPI KUMAR KANWAR</option>
-            <option value="H.N.NAYAK">H.N.NAYAK</option>
-            <option value="HARI SHANKAR SINGH">HARI SHANKAR SINGH</option>
-            <option value="HARISH KUMAR SHARMA">HARISH KUMAR SHARMA</option>
-            <option value="HEMANT KUMAR DEULKAR">HEMANT KUMAR DEULKAR</option>
-            <option value="HEMANT KUMAR MAHOR">HEMANT KUMAR MAHOR</option>
-            <option value="HIMMAT SINGH BHADAURIA">HIMMAT SINGH BHADAURIA</option>
-            <option value="J.P.VERMA">J.P.VERMA</option>
-            <option value="JAGAT PAL BOUDDH">JAGAT PAL BOUDDH</option>
-            <option value="JASWANT SINGH">JASWANT SINGH</option>
-            <option value="KAMESHWAR SINGH RAJPUT">KAMESHWAR SINGH RAJPUT</option>
-            <option value="KARTA LAKRA">KARTA LAKRA</option>
-            <option value="KHELA MARDI">KHELA MARDI</option>
-            <option value="LAXMAN PRASAD">LAXMAN PRASAD</option>
-            <option value="LAXMIKANT SHARAFF">LAXMIKANT SHARAFF</option>
-            <option value="LOKNATH PRADHAN">LOKNATH PRADHAN</option>
-            <option value="M SANYASI">M SANYASI</option>
-            <option value="M.K.PANDAB">M.K.PANDAB</option>
-            <option value="M.K.TIWARI">M.K.TIWARI</option>
-            <option value="M.NAYAK">M.NAYAK</option>
-            <option value="M.S.MARABI">M.S.MARABI</option>
-            <option value="MAHENDRA KUMAR">MAHENDRA KUMAR</option>
-            <option value="MAHESH KUMAR YADAV DSL">MAHESH KUMAR YADAV DSL</option>
-            <option value="MANOJ KUMAR CHANDRAKER">MANOJ KUMAR CHANDRAKER</option>
-            <option value="MD.TANVIR ALAM">MD.TANVIR ALAM</option>
-            <option value="N.K.BANJARE">N.K.BANJARE</option>
-            <option value="N.K.PRASAD">N.K.PRASAD</option>
-            <option value="N.R.MISHRA">N.R.MISHRA</option>
-            <option value="N.SAHU">N.SAHU</option>
-            <option value="NARAYAN PANDA">NARAYAN PANDA</option>
-            <option value="OMPRAKASH">OMPRAKASH</option>
-            <option value="P.K.SHRIVASATAVA">P.K.SHRIVASATAVA</option>
-            <option value="P.LIGARI">P.LIGARI</option>
-            <option value="P.MITRA BRJN DSL">P.MITRA BRJN DSL</option>
-            <option value="PARMANAND">PARMANAND</option>
-            <option value="PRABHAT KUMAR DAS">PRABHAT KUMAR DAS</option>
-            <option value="PRADEEP KUMAR GUPTA">PRADEEP KUMAR GUPTA</option>
-            <option value="PREM PRAKASH TIWARI DSL">PREM PRAKASH TIWARI DSL</option>
-            <option value="R.C.SAHU">R.C.SAHU</option>
-            <option value="R.K.SINGH DSL">R.K.SINGH DSL</option>
-            <option value="R.S.THAKUR">R.S.THAKUR</option>
-            <option value="RAM AWADH">RAM AWADH</option>
-            <option value="RAMESH YADAV DSL">RAMESH YADAV DSL</option>
-            <option value="RAMSAJEEWAN PATEL">RAMSAJEEWAN PATEL</option>
-            <option value="S.C.MAURYA">S.C.MAURYA</option>
-            <option value="S.K.ACHARYA">S.K.ACHARYA</option>
-            <option value="S.K.DAS">S.K.DAS</option>
-            <option value="S.K.GOUDA">S.K.GOUDA</option>
-            <option value="S.K.HOTA">S.K.HOTA</option>
-            <option value="S.K.KUSHWAHA">S.K.KUSHWAHA</option>
-            <option value="S.K.SAHU DSL">S.K.SAHU DSL</option>
-            <option value="S.K.SUMAN">S.K.SUMAN</option>
-            <option value="S.K.TRIPATHY">S.K.TRIPATHY</option>
-            <option value="S.P.DEY">S.P.DEY</option>
-            <option value="S.P.RAMASHANKAR">S.P.RAMASHANKAR</option>
-            <option value="S.PARIDA">S.PARIDA</option>
-            <option value="S.S.KOLWADKAR DSL">S.S.KOLWADKAR DSL</option>
-            <option value="SANDEEP CHOUBEY">SANDEEP CHOUBEY</option>
-            <option value="SANDEEP KUMAR">SANDEEP KUMAR</option>
-            <option value="SANJAY GIRI">SANJAY GIRI</option>
-            <option value="SANT BHUSHAN PATLEY">SANT BHUSHAN PATLEY</option>
-            <option value="SANTOSH KUMAR">SANTOSH KUMAR</option>
-            <option value="SHAKIL AHMED DSL">SHAKIL AHMED DSL</option>
-            <option value="SHASHI BHUSAN">SHASHI BHUSAN</option>
-            <option value="SHYAM BIHARI SINGH">SHYAM BIHARI SINGH</option>
-            <option value="SHYAMAL DAS (DSL)">SHYAMAL DAS (DSL)</option>
-            <option value="SUBHASH CHANDRA">SUBHASH CHANDRA</option>
-            <option value="SUBODH KUMAR DSL">SUBODH KUMAR DSL</option>
-            <option value="SUMANT KUMAR BAGHMAR">SUMANT KUMAR BAGHMAR</option>
-            <option value="SURENDRA KUMAR PRETA DSL">SURENDRA KUMAR PRETA DSL</option>
-            <option value="SURESH CHANDRA">SURESH CHANDRA</option>
-            <option value="SURESH CHANDRA SDL">SURESH CHANDRA SDL</option>
-            <option value="SURESH SINGH CHAUHAN">SURESH SINGH CHAUHAN</option>
-            <option value="T.K.VERMA">T.K.VERMA</option>
-            <option value="U.K.MADHU">U.K.MADHU</option>
-            <option value="U.P.SINHA">U.P.SINHA</option>
-            <option value="UTTAM KUMAR SAHU">UTTAM KUMAR SAHU</option>
-            <option value="VIDYAKAR RAI DSL">VIDYAKAR RAI DSL</option>
-            <option value="VIJAY KUMAR">VIJAY KUMAR</option>
-            <option value="VIKASH KUMAR DSL">VIKASH KUMAR DSL</option>
-            <option value="VINAY KUMAR SAHU">VINAY KUMAR SAHU</option>
-            <option value="VINOD KUMAR">VINOD KUMAR</option>
-            <option value="VINOD KUMAR RAI">VINOD KUMAR RAI</option>
-            <option value="VISHNU MOHAN SINGH RAJPUT">VISHNU MOHAN SINGH RAJPUT</option>
-            <option value="VIVEK KUMAR">VIVEK KUMAR</option>
-            <option value="YASHWANT KUMAR VERMA">YASHWANT KUMAR VERMA</option>
-            <option value="YOGENDRA KUMAR">YOGENDRA KUMAR</option>
-        </select>
-</div>
-        <div class="form-group">
-            <label for="fromDateTime">From Date and Time</label>
-            <input type="datetime-local" id="fromDateTime" name="fromDateTime" required>
-        </div>
-        <div class="form-group">
-            <label for="toDateTime">To Date and Time</label>
-            <input type="datetime-local" id="toDateTime" name="toDateTime" required>
-        </div>
-        <div class="form-group">
-            <label for="cugFile">Upload CUG.csv File</label>
-            <input type="file" id="cugFile" name="cugFile" accept=".csv">
-        </div>
-        <div class="form-group">
-            <label for="spmFile">Upload SPM File</label>
-            <input type="file" id="spmFile" name="spmFile" accept=".xlsx,.xls,.txt,.pdf" required>
-        </div>
-    </div>
-</div>
+                <h2>ANALYSIS DETAILS</h2>
+                <div class="box">
+                    <div class="form-group">
+                        <label for="spmType">Type of SPM</label>
+                        <select id="spmType" name="spmType" required>
+                            <option value="" disabled selected>Select SPM Type</option>
+                            <option value="Laxven">Laxven</option>
+                            <option value="Medha">Medha</option>
+                            <option value="Telpro">Telpro</option>
+                            <option value="MR">MR</option>
+                            <option value="VEL">VEL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cliName">CLI NAME (Analysis and Ambush done by)</label>
+                        <select id="cliName" name="cliName" required>
+                            <option value="" selected disabled>-- Select a Name --</option>
+                            <option value="A.N.PANDEY">A.N.PANDEY</option>
+                            <option value="ABDUL SAMAD GHAURI">ABDUL SAMAD GHAURI</option>
+                            <option value="ADESH SHUKLA">ADESH SHUKLA</option>
+                            <option value="AJAY KUMAR">AJAY KUMAR</option>
+                            <option value="ANIL KUMAR">ANIL KUMAR</option>
+                            <option value="ASHOK KUMAR">ASHOK KUMAR</option>
+                            <option value="ASHOK KUMAR MISHRA">ASHOK KUMAR MISHRA</option>
+                            <option value="B BHARADWAJ">B BHARADWAJ</option>
+                            <option value="B G RAHULAN">B G RAHULAN</option>
+                            <option value="BHASKAR SAHOO">BHASKAR SAHOO</option>
+                            <option value="BHAWANAND GOPE">BHAWANAND GOPE</option>
+                            <option value="BIDHAN CHANDRA ROY">BIDHAN CHANDRA ROY</option>
+                            <option value="BRIJ BHUSHAN SINGH">BRIJ BHUSHAN SINGH</option>
+                            <option value="BRIJESH SHARMA">BRIJESH SHARMA</option>
+                            <option value="CHAKRESH KUMAR">CHAKRESH KUMAR</option>
+                            <option value="CHAMAN LAL">CHAMAN LAL</option>
+                            <option value="CHANDRA PRAKASH RATHORE">CHANDRA PRAKASH RATHORE</option>
+                            <option value="CHANDRA SHEKHAR SONI">CHANDRA SHEKHAR SONI</option>
+                            <option value="CHANDRASHEKHAR">CHANDRASHEKHAR</option>
+                            <option value="D.K.RAY">D.K.RAY</option>
+                            <option value="D.S.PAIKRA">D.S.PAIKRA</option>
+                            <option value="D.SANGA">D.SANGA</option>
+                            <option value="DAYARAM PASWAN">DAYARAM PASWAN</option>
+                            <option value="DHARAM PAL">DHARAM PAL</option>
+                            <option value="DILHARAN LAL ADITYA">DILHARAN LAL ADITYA</option>
+                            <option value="DINESH KUMAR RAIDAS">DINESH KUMAR RAIDAS</option>
+                            <option value="G L TANDON">G L TANDON</option>
+                            <option value="G.GOVIND RAO">G.GOVIND RAO</option>
+                            <option value="G.N.ORAM">G.N.ORAM</option>
+                            <option value="G.P.KASHYAP DSL">G.P.KASHYAP DSL</option>
+                            <option value="GAUKARAN KUMBHAKAR">GAUKARAN KUMBHAKAR</option>
+                            <option value="GOPAL DAS DSL">GOPAL DAS DSL</option>
+                            <option value="GOPI KUMAR KANWAR">GOPI KUMAR KANWAR</option>
+                            <option value="H.N.NAYAK">H.N.NAYAK</option>
+                            <option value="HARI SHANKAR SINGH">HARI SHANKAR SINGH</option>
+                            <option value="HARISH KUMAR SHARMA">HARISH KUMAR SHARMA</option>
+                            <option value="HEMANT KUMAR DEULKAR">HEMANT KUMAR DEULKAR</option>
+                            <option value="HEMANT KUMAR MAHOR">HEMANT KUMAR MAHOR</option>
+                            <option value="HIMMAT SINGH BHADAURIA">HIMMAT SINGH BHADAURIA</option>
+                            <option value="J.P.VERMA">J.P.VERMA</option>
+                            <option value="JAGAT PAL BOUDDH">JAGAT PAL BOUDDH</option>
+                            <option value="JASWANT SINGH">JASWANT SINGH</option>
+                            <option value="KAMESHWAR SINGH RAJPUT">KAMESHWAR SINGH RAJPUT</option>
+                            <option value="KARTA LAKRA">KARTA LAKRA</option>
+                            <option value="KHELA MARDI">KHELA MARDI</option>
+                            <option value="LAXMAN PRASAD">LAXMAN PRASAD</option>
+                            <option value="LAXMIKANT SHARAFF">LAXMIKANT SHARAFF</option>
+                            <option value="LOKNATH PRADHAN">LOKNATH PRADHAN</option>
+                            <option value="M SANYASI">M SANYASI</option>
+                            <option value="M.K.PANDAB">M.K.PANDAB</option>
+                            <option value="M.K.TIWARI">M.K.TIWARI</option>
+                            <option value="M.NAYAK">M.NAYAK</option>
+                            <option value="M.S.MARABI">M.S.MARABI</option>
+                            <option value="MAHENDRA KUMAR">MAHENDRA KUMAR</option>
+                            <option value="MAHESH KUMAR YADAV DSL">MAHESH KUMAR YADAV DSL</option>
+                            <option value="MANOJ KUMAR CHANDRAKER">MANOJ KUMAR CHANDRAKER</option>
+                            <option value="MD.TANVIR ALAM">MD.TANVIR ALAM</option>
+                            <option value="N.K.BANJARE">N.K.BANJARE</option>
+                            <option value="N.K.PRASAD">N.K.PRASAD</option>
+                            <option value="N.R.MISHRA">N.R.MISHRA</option>
+                            <option value="N.RAVICHANDRAN">N.RAVICHANDRAN</option>
+                            <option value="N.SAHU">N.SAHU</option>
+                            <option value="NARAYAN PANDA">NARAYAN PANDA</option>
+                            <option value="OMPRAKASH">OMPRAKASH</option>
+                            <option value="P.K.SHRIVASATAVA">P.K.SHRIVASATAVA</option>
+                            <option value="P.LIGARI">P.LIGARI</option>
+                            <option value="P.MITRA BRJN DSL">P.MITRA BRJN DSL</option>
+                            <option value="PARMANAND">PARMANAND</option>
+                            <option value="PRABHAT KUMAR DAS">PRABHAT KUMAR DAS</option>
+                            <option value="PRADEEP KUMAR GUPTA">PRADEEP KUMAR GUPTA</option>
+                            <option value="PREM PRAKASH TIWARI DSL">PREM PRAKASH TIWARI DSL</option>
+                            <option value="R.C.SAHU">R.C.SAHU</option>
+                            <option value="R.K.SINGH DSL">R.K.SINGH DSL</option>
+                            <option value="R.S.THAKUR">R.S.THAKUR</option>
+                            <option value="RAM AWADH">RAM AWADH</option>
+                            <option value="RAMESH YADAV DSL">RAMESH YADAV DSL</option>
+                            <option value="RAMSAJEEWAN PATEL">RAMSAJEEWAN PATEL</option>
+                            <option value="S.C.MAURYA">S.C.MAURYA</option>
+                            <option value="S.K.ACHARYA">S.K.ACHARYA</option>
+                            <option value="S.K.DAS">S.K.DAS</option>
+                            <option value="S.K.GOUDA">S.K.GOUDA</option>
+                            <option value="S.K.HOTA">S.K.HOTA</option>
+                            <option value="S.K.KUSHWAHA">S.K.KUSHWAHA</option>
+                            <option value="S.K.SAHU DSL">S.K.SAHU DSL</option>
+                            <option value="S.K.SUMAN">S.K.SUMAN</option>
+                            <option value="S.K.TRIPATHY">S.K.TRIPATHY</option>
+                            <option value="S.P.DEY">S.P.DEY</option>
+                            <option value="S.P.RAMASHANKAR">S.P.RAMASHANKAR</option>
+                            <option value="S.PARIDA">S.PARIDA</option>
+                            <option value="S.S.KOLWADKAR DSL">S.S.KOLWADKAR DSL</option>
+                            <option value="SANDEEP CHOUBEY">SANDEEP CHOUBEY</option>
+                            <option value="SANDEEP KUMAR">SANDEEP KUMAR</option>
+                            <option value="SANJAY GIRI">SANJAY GIRI</option>
+                            <option value="SANT BHUSHAN PATLEY">SANT BHUSHAN PATLEY</option>
+                            <option value="SANTOSH KUMAR">SANTOSH KUMAR</option>
+                            <option value="SHAKIL AHMED DSL">SHAKIL AHMED DSL</option>
+                            <option value="SHASHI BHUSAN">SHASHI BHUSAN</option>
+                            <option value="SHYAM BIHARI SINGH">SHYAM BIHARI SINGH</option>
+                            <option value="SHYAMAL DAS (DSL)">SHYAMAL DAS (DSL)</option>
+                            <option value="SUBHASH CHANDRA">SUBHASH CHANDRA</option>
+                            <option value="SUBODH KUMAR DSL">SUBODH KUMAR DSL</option>
+                            <option value="SUDHIR KUMAR SINHA">SUDHIR KUMAR SINHA</option>
+                            <option value="SUMANT KUMAR BAGHMAR">SUMANT KUMAR BAGHMAR</option>
+                            <option value="SURENDRA KUMAR PRETA DSL">SURENDRA KUMAR PRETA DSL</option>
+                            <option value="SURESH CHANDRA">SURESH CHANDRA</option>
+                            <option value="SURESH CHANDRA SDL">SURESH CHANDRA SDL</option>
+                            <option value="SURESH SINGH CHAUHAN">SURESH SINGH CHAUHAN</option>
+                            <option value="T.K.VERMA">T.K.VERMA</option>
+                            <option value="U.K.MADHU">U.K.MADHU</option>
+                            <option value="U.P.SINHA">U.P.SINHA</option>
+                            <option value="UTTAM KUMAR SAHU">UTTAM KUMAR SAHU</option>
+                            <option value="VIDYAKAR RAI DSL">VIDYAKAR RAI DSL</option>
+                            <option value="VIJAY KUMAR">VIJAY KUMAR</option>
+                            <option value="VIKASH KUMAR DSL">VIKASH KUMAR DSL</option>
+                            <option value="VINAY KUMAR SAHU">VINAY KUMAR SAHU</option>
+                            <option value="VINOD KUMAR">VINOD KUMAR</option>
+                            <option value="VINOD KUMAR RAI">VINOD KUMAR RAI</option>
+                            <option value="VISHNU MOHAN SINGH RAJPUT">VISHNU MOHAN SINGH RAJPUT</option>
+                            <option value="VIVEK KUMAR">VIVEK KUMAR</option>
+                            <option value="YASHWANT KUMAR VERMA">YASHWANT KUMAR VERMA</option>
+                            <option value="YOGENDRA KUMAR">YOGENDRA KUMAR</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fromDateTime">From Date and Time</label>
+                        <input type="datetime-local" id="fromDateTime" name="fromDateTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="toDateTime">To Date and Time</label>
+                        <input type="datetime-local" id="toDateTime" name="toDateTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cugFile">Upload CUG.csv File</label>
+                        <input type="file" id="cugFile" name="cugFile" accept=".csv">
+                    </div>
+                    <div class="form-group">
+                        <label for="spmFile">Upload SPM File</label>
+                        <input type="file" id="spmFile" name="spmFile" accept=".xlsx,.xls,.txt,.pdf" required>
+                    </div>
+                </div>
+            </div>
             <button type="submit">ANALYZE THE SPM DATA</button>
         </form>
     </div>
     <canvas id="speedChart" style="display: none;"></canvas>
     <canvas id="stopChart" style="display: none;"></canvas>
     <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
+        <div class="train-loader-container">
+            <div class="track"></div>
+            <div class="train-arm">
+                <div class="train">
+                    <div class="engine">
+                        <div class="engine-body"></div>
+                        <div class="engine-cabin"></div>
+                        <div class="engine-smoke">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                    <div class="coach"></div>
+                    <div class="coach"></div>
+                </div>
+            </div>
+        </div>
     </div>
-
     <script>
         // Global function to toggle loading overlay
         window.toggleLoadingOverlay = function(show) {
@@ -405,6 +948,35 @@
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // --- Theme Switcher Logic ---
+            const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');
+            const currentTheme = localStorage.getItem('theme');
+
+            if (currentTheme) {
+                document.body.classList.add(currentTheme);
+                if (currentTheme === 'day-mode') {
+                    toggleSwitch.checked = false;
+                } else {
+                    toggleSwitch.checked = true;
+                }
+            } else {
+                // Default to night mode if no theme is saved
+                document.body.classList.add('day-mode');
+                 toggleSwitch.checked = false;
+            }
+
+            function switchTheme(e) {
+                if (e.target.checked) {
+                    document.body.classList.remove('day-mode');
+                    localStorage.setItem('theme', 'night-mode');
+                } else {
+                    document.body.classList.add('day-mode');
+                    localStorage.setItem('theme', 'day-mode');
+                }
+            }
+
+            toggleSwitch.addEventListener('change', switchTheme, false);
+            // --- End Theme Switcher Logic ---
             try {
                 crewData = await fetchCSV('CREW.csv');
                 console.log('Loaded CREW Data:', crewData);
@@ -519,20 +1091,20 @@
                 });
                 // --- END MANUAL ENTRY LOGIC ---
                 // --- START: Force Uppercase for Manual Entry ---
-            const allManualFields = [...lpFields, ...alpFields];
+                const allManualFields = [...lpFields, ...alpFields];
 
-            allManualFields.forEach(field => {
-                field.addEventListener('input', () => {
-                    // Store cursor position
-                    const start = field.selectionStart;
-                    const end = field.selectionEnd;
-                    // Convert to uppercase
-                    field.value = field.value.toUpperCase();
-                    // Restore cursor position
-                    field.setSelectionRange(start, end);
+                allManualFields.forEach(field => {
+                    field.addEventListener('input', () => {
+                        // Store cursor position
+                        const start = field.selectionStart;
+                        const end = field.selectionEnd;
+                        // Convert to uppercase
+                        field.value = field.value.toUpperCase();
+                        // Restore cursor position
+                        field.setSelectionRange(start, end);
+                    });
                 });
-            });
-            // --- END: Force Uppercase for Manual Entry ---
+                // --- END: Force Uppercase for Manual Entry ---
 
 
                 const spmTypeSelect = document.getElementById('spmType');
