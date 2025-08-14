@@ -1,7 +1,15 @@
 // googlesheet.js (Updated on 23-July-2025)
 
 async function sendDataToGoogleSheet(data) {
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbz1y1pLeoOnO8d1FleAA98FNjS3AIzaIARB_PTwn7CplqBQW-k6ncbBzH17NCyp21MO/exec';
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbytfdq9ljtGxhJoERSNI5lq0czISWzP0GVdRTg76iTcijAqy-yuJX6MCMv8C6F2Prep/exec';
+    // --- START: YEH NAYA CODE ADD KAREIN ---
+    // Yah sunishchit karega ki 'Type of SPM' hamesha data mein shaamil ho.
+    // Yah 'reportData.trainDetails' se value nikalta hai, jo report.html par dikh rahi hai.
+    if (!data.trainDetails.find(d => d.label === 'SPM Type')) {
+        const spmTypeFromUI = reportData.trainDetails.find(d => d.label === 'SPM Type')?.value || 'N/A';
+        data.trainDetails.push({ label: 'SPM Type', value: spmTypeFromUI });
+    }
+    // --- END: NAYA CODE ---
 
     // General CLI Observation and abnormalities
     data.cliObservation = document.getElementById('cliRemarks').value.trim() || 'NIL';
