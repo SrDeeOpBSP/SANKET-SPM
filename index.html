@@ -436,129 +436,6 @@ input:checked + .slider:before {
     transform: translateX(26px);
     content: "🌙";
 }
-/* === 78th Independence Day Animation === */
-#independence-overlay-78 {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #f0f0f0;
-    z-index: 9999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    animation: fadeOutOverlay78 3s forwards 1s;
-}
-
-.background-tiranga {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(180deg, #FF9933 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #138808 66.6%);
-    opacity: 0;
-    animation: revealBackground 2s forwards 0.5s;
-}
-.background-tiranga::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 250px;
-    height: 250px;
-    transform: translate(-50%, -50%);
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000080" d="M12,2A10,10 0 1,0 22,12 10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12 8,8 0 0,1 12,4M12,6.08L12.39,6.13L13.5,8.04L15.61,8.5L14.5,10.15L15.3,12.23L13.41,11.54L12,13L10.59,11.54L8.7,12.23L9.5,10.15L8.39,8.5L10.5,8.04L11.61,6.13L12,6.08Z" /></svg>');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    opacity: 0.1;
-    animation: spinChakra78 20s linear infinite, fadeInChakra 3s forwards 1s;
-}
-
-.content-78 {
-    position: relative;
-    z-index: 2;
-    text-align: center;
-    opacity: 0;
-    animation: fadeInContent78 2s forwards 1.5s;
-}
-
-.text-78 {
-    font-size: 18vw;
-    font-weight: 900;
-    color: rgba(0, 0, 128, 0.8); /* Navy Blue */
-    line-height: 1;
-    text-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-}
-
-.sub-text {
-    font-size: 3vw;
-    font-weight: bold;
-    color: #333;
-    margin-top: -2vw;
-    margin-bottom: 2vw;
-}
-
-.content-78 h1 {
-    font-size: 5vw;
-    color: #fff;
-    font-weight: bold;
-    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
-    background: rgba(0, 0, 0, 0.2);
-    padding: 10px 20px;
-    border-radius: 10px;
-    display: inline-block;
-}
-
-.courtesy-line {
-    font-size: 2.2vw;
-    color: #fff;
-    margin-top: 3vw;
-    font-weight: 500;
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
-    letter-spacing: 1px;
-    opacity: 0.9;
-}
-
-/* Keyframes */
-@keyframes fadeOutOverlay78 {
-    0%, 80% { opacity: 1; visibility: visible; }
-    100% { opacity: 0; visibility: hidden; }
-}
-
-@keyframes revealBackground {
-    to { opacity: 1; }
-}
-@keyframes fadeInChakra {
-    to { opacity: 0.1; }
-}
-@keyframes fadeInContent78 {
-    to { opacity: 1; }
-}
-@keyframes spinChakra78 {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-@media (max-width: 768px) {
-    .text-78 { font-size: 28vw; }
-    .sub-text { font-size: 6vw; margin-top: -4vw; }
-    .content-78 h1 { font-size: 7vw; }
-    .courtesy-line { 
-        font-size: 3.5vw; 
-        margin-top: 5vw; 
-    }
-}
-/* --- Responsive Design --- */
-@media (max-width: 768px) {
-    .form-row {
-        flex-direction: column;
-    }
-    .container {
-        padding: 15px;
-    }
-}
 /* styles.css में यह जोड़ें */
 .manual-link {
     display: block;
@@ -572,19 +449,136 @@ input:checked + .slider:before {
 .manual-link:hover {
     text-decoration: underline;
 }
+/* --- About Us Toggle (Updated for Scrolling Page) --- */
+.about-us-toggle-container {
+    /* This makes the icon part of the page flow */
+    position: relative;
+    display: flex;
+    justify-content: flex-end; /* Pushes the icon to the right */
+    margin-top: 30px; /* Space above the icon */
+    padding-right: 10px;
+}
+
+/* New animation keyframes for the pulsing glow */
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 5px var(--accent-glow), 0 0 10px var(--accent-glow);
+    }
+    50% {
+        box-shadow: 0 0 20px var(--accent-glow), 0 0 30px var(--accent-glow);
+    }
+    100% {
+        box-shadow: 0 0 5px var(--accent-glow), 0 0 10px var(--accent-glow);
+    }
+}
+
+.about-us-icon {
+    background: var(--accent-color);
+    color: #fff;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    font-family: 'Georgia', serif; /* More professional font for 'i' */
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    transition: transform 0.3s ease;
+    /* Apply the animation here */
+    animation: pulse-glow 3s infinite;
+}
+
+.about-us-icon:hover {
+    transform: scale(1.1);
+    animation-play-state: paused; /* Pause the glow on hover */
+}
+
+.about-us-modal {
+    /* Changed to absolute to position relative to its container */
+    position: absolute;
+    bottom: 120%; /* Position it directly above the icon */
+    right: 0;
+    background: var(--box-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    width: 400px;
+    max-width: 90vw;
+    max-height: 75vh;
+    overflow-y: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+}
+
+.about-us-modal.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.about-us-modal h2 {
+    color: var(--accent-color);
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 8px;
+    font-size: 1.3rem;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.about-us-modal h3 {
+    color: var(--text-muted);
+    font-size: 1rem;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    padding: 0;
+    border: none;
+    background: none;
+    text-align: left;
+}
+
+.about-us-modal p, .about-us-modal li {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-color);
+}
+
+.about-us-modal ul {
+    list-style-type: disc;
+    padding-left: 20px;
+    margin: 0;
+}
+
+.contributor-card {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.contributor-card h4 {
+    margin: 0 0 5px 0;
+    padding: 0;
+    font-size: 1rem;
+    color: var(--accent-color);
+    background: none;
+    border: none;
+    text-align: left;
+    max-width: 100%;
+}
+
+.contributor-card p {
+    margin: 0;
+}
     </style>
 </head>
 <body>
-   <div id="independence-overlay-78">
-        <div class="background-tiranga"></div>
-        <div class="content-78">
-            <div class="text-78">79</div>
-            <div class="sub-text">Years of Freedom & Progress</div>
-            <h1>स्वतंत्रता दिवस की<br>हार्दिक शुभकामनाएँ</h1>
-            <div class="courtesy-line">सौजन्य से: विद्युत (परिचालन), बिलासपुर</div>
-        </div>
-    </div>
-
     <div class="container">
         <img src="railway logo.png" alt="Railway Logo" class="logo">
         <div class="theme-switch-wrapper">
@@ -899,6 +893,38 @@ input:checked + .slider:before {
             </div>
             <button type="submit">ANALYZE THE SPM DATA</button>
         </form>
+         <div class="about-us-toggle-container">
+        <div class="about-us-icon" id="aboutUsToggle">i</div>
+       <div class="about-us-modal" id="aboutUsModal">
+    <h2>About SANKET</h2>
+    <p>
+        <b>SANKET</b> (SPM Analysis and Navigation KPA Extraction Tool) is a sophisticated web application engineered to revolutionize the analysis of locomotive data recorder (SPM) files. Spearheaded by the Electrical (OP) department of SECR, Bilaspur, this tool automates the meticulous process of monitoring train operations, evaluating crew performance, and ensuring safety compliance.
+    </p>
+
+    <h3>Key Features</h3>
+    <ul>
+        <li><b>Universal SPM Compatibility:</b> Seamlessly processes data from a wide array of SPM systems, including Laxven, Medha, Telpro, MR, VEL, and RTIS.</li>
+        <li><b>Intelligent Anomaly Detection:</b> Automatically identifies and reports critical operational anomalies like overspeeding, wheel slip, and improper brake application.</li>
+        <li><b>Advanced Data Visualization:</b> Renders complex data into intuitive, interactive charts for clear interpretation of locomotive performance.</li>
+        <li><b>Automated Reporting & Logging:</b> Instantly generates comprehensive PDF reports and logs all findings to a centralized Google Sheet for robust record-keeping and trend analysis.</li>
+    </ul>
+
+    <div class="contributor-card">
+        <h3>The Development Team</h3>
+        
+        <h4>Visionary & Motivational Support</h4>
+        <p><b>Shri Masud Alam, Sr. DEE/OP/BSP</b><br>Provided the essential leadership and encouragement that propelled this project from concept to reality.</p>
+        
+        <h4 style="margin-top:15px;">Technical & Domain Expertise</h4>
+        <p><b>Shri N Ravichandran, CLI/BSP</b><br>Offered invaluable expert guidance on locomotive operations and data interpretation, ensuring the tool's accuracy and relevance.</p>
+
+        <h4 style="margin-top:15px;">Lead Developer & Architect</h4>
+        <p><b>Shri Mohammad Rustam Khan, Sr. ALP/BSP</b><br>Masterminded the core architecture, coding, and web design, transforming complex requirements into a functional and user-friendly application.</p>
+
+        <h4 style="margin-top:15px;">Data Management & Curation</h4>
+        <p><b>Shri Chandan Shah, Sr. ALP/BSP</b><br><b>Shri Rupesh Kumar Verma, TECH-1/BSP</b><br>Instrumental in arranging, structuring, and validating the vast datasets required for the tool's backend logic.</p>
+    </div>
+</div>
     </div>
     <canvas id="speedChart" style="display: none;"></canvas>
     <canvas id="stopChart" style="display: none;"></canvas>
@@ -1241,7 +1267,24 @@ if (['Laxven', 'Telpro', 'RTIS'].includes(spmType) && !['xlsx', 'xls'].includes(
                 document.getElementById('loadingOverlay').style.display = 'none';
             }
         });
+        // This script should be at the end of the body
+        document.addEventListener('DOMContentLoaded', function() {
+            const aboutUsToggle = document.getElementById('aboutUsToggle');
+            const aboutUsModal = document.getElementById('aboutUsModal');
+
+            if (aboutUsToggle) {
+                aboutUsToggle.addEventListener('click', function() {
+                    aboutUsModal.classList.toggle('show');
+                });
+            }
+
+            // Close the modal if the user clicks anywhere outside of the modal content and the icon
+            window.addEventListener('click', function(event) {
+                if (!aboutUsModal.contains(event.target) && !aboutUsToggle.contains(event.target)) {
+                    aboutUsModal.classList.remove('show');
+                }
+            });
+        });
     </script>
 </body>
-
 </html>
