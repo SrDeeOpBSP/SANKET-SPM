@@ -92,8 +92,17 @@ const parseAndProcessCugData = (file) => {
 
 document.getElementById('spmForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert('Processing SPM PDF file, please wait...');
 
+    // --- YEH NAYA CODE ADD KAREIN ---
+    showToast('Processing SPM file, please wait...');
+    if (window.toggleLoadingOverlay) window.toggleLoadingOverlay(true);
+
+    try {
+        // Step 1: File aur data ko pehle Google Drive par upload karega.
+        showToast('Uploading data and SPM file to Google Drive. This may take a moment...');
+        await uploadDataAndFileToGoogle();
+        showToast('Upload complete! Now analyzing the data for the report...');
+    // --- YAHAN TAK KA CODE ADD KARNA HAI ---
     if (speedChartInstance) speedChartInstance.destroy();
     if (stopChartInstance) stopChartInstance.destroy();
 
@@ -1389,4 +1398,9 @@ console.log('Enhanced Stops:', stops);
     };
 
     reader.readAsArrayBuffer(spmFile);
+    } catch (error) { // <<-- AUR AAKHIR MEIN BAS YEH ERROR BLOCK ADD HUA
+        console.error('Error during submission:', error);
+        alert(`An error occurred: ${error.message}`);
+        if (window.toggleLoadingOverlay) window.toggleLoadingOverlay(false);
+    }
 });

@@ -92,10 +92,16 @@ const parseAndProcessCugData = (file) => {
 
 document.getElementById('spmForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert('Processing SPM file, please wait...');
+    showToast('Processing SPM file, please wait...');
     if (window.toggleLoadingOverlay) window.toggleLoadingOverlay(true);
 
     try {
+        // --- NEW CODE START ---
+        // Step 1: Upload the file and data to Google first.
+        showToast('Uploading data and SPM file to Google Drive. This may take a moment...');
+        await uploadDataAndFileToGoogle();
+        showToast('Upload complete! Now analyzing the data for the report...');
+        // --- NEW CODE END ---
         // Clear previous charts
         if (speedChartInstance) speedChartInstance.destroy();
         if (stopChartInstance) stopChartInstance.destroy();

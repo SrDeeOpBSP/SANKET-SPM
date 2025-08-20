@@ -72,13 +72,18 @@ const parseAndProcessCugData = (file) => {
 // Main form submission handler
 document.getElementById('spmForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert('Processing RTIS file, please wait...');
+    showToast('Processing RTIS file, please wait...');
     if (window.toggleLoadingOverlay) window.toggleLoadingOverlay(true);
 
     try {
         if (speedChartInstance) speedChartInstance.destroy();
         if (stopChartInstance) stopChartInstance.destroy();
-
+        // --- YEH NAYA CODE ADD KAREIN ---
+           // Step 1: File aur data ko pehle Google Drive par upload karega.
+           showToast('Uploading data and SPM file to Google Drive. This may take a moment...');
+           await uploadDataAndFileToGoogle();
+           showToast('Upload complete! Now analyzing the data for the report...');
+           // --- NAYA CODE YAHAN KHATAM ---
         const lpId = document.getElementById('lpId').value.trim();
         const lpName = document.getElementById('lpName').value.trim();
         const lpDesg = document.getElementById('lpDesg').value.trim();

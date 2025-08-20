@@ -90,12 +90,23 @@ const parseAndProcessCugData = (file) => {
 
 document.getElementById('spmForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert('Processing SPM file, please wait...');
 
-    if (speedChartInstance) speedChartInstance.destroy();
-    if (stopChartInstance) stopChartInstance.destroy();
+    // --- YEH NAYA CODE ADD KAREIN ---
+    showToast('Processing SPM file, please wait...');
+    if (window.toggleLoadingOverlay) window.toggleLoadingOverlay(true);
 
-   const lpId = document.getElementById('lpId').value.trim();
+    try {
+        // Step 1: File aur data ko pehle Google Drive par upload karega.
+        showToast('Uploading data and SPM file to Google Drive. This may take a moment...');
+        await uploadDataAndFileToGoogle();
+        showToast('Upload complete! Now analyzing the data for the report...');
+    // --- YAHAN TAK KA CODE ADD KARNA HAI ---
+
+        if (speedChartInstance) speedChartInstance.destroy();
+        if (stopChartInstance) stopChartInstance.destroy();
+
+        const lpId = document.getElementById('lpId').value.trim();
+        // ... baaki ka code waisa hi rahega
         const lpName = document.getElementById('lpName').value.trim();
         const lpDesg = document.getElementById('lpDesg').value.trim();
         const lpGroupCli = document.getElementById('lpGroupCli').value.trim();
@@ -1409,4 +1420,9 @@ console.log('Station Stops:', stationStops);
     };
 
     reader.readAsText(spmFile);
+    } catch (error) { // <<-- AUR AAKHIR MEIN BAS YEH ERROR BLOCK ADD HUA
+        console.error('Error during submission:', error);
+        alert(`An error occurred: ${error.message}`);
+        if (window.toggleLoadingOverlay) window.toggleLoadingOverlay(false);
+    }
 });
