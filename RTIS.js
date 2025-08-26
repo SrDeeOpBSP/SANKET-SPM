@@ -433,7 +433,7 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
         else { let sec = stations.slice(0, -1).find((s, i) => stop.kilometer >= s.distance && stop.kilometer < stations[i+1].distance); stop.stopLocation = sec ? `${sec.name}-${stations[stations.indexOf(sec) + 1].name}` : 'Unknown'; }
         const speedsBefore = [800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(2) || 'N/A');
         const [s8, s5, s1, s0] = speedsBefore.map(s => parseFloat(s) || Infinity);
-        const smooth = rakeType === 'GOODS' ? (s8 <= 30 && s5 <= 25 && s1 <= 15 && s0 <= 10) : (s8 <= 60 && s5 <= 45 && s1 <= 20 && s0 <= 20);
+        const smooth = rakeType === 'GOODS' ? (s8 <= 30 && s5 <= 25 && s1 <= 15 && s0 <= 10) : (s8 <= 60 && s5 <= 45 && s1 <= 30 && s0 <= 20);
         stop.brakingTechnique = smooth ? 'Smooth' : 'Late';
         stop.speedsBefore = speedsBefore;
     });

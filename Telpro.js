@@ -801,7 +801,7 @@ const finalStops = stops.map(stop => {
     const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
     let isSmooth;
     if (rakeType === 'COACHING' || rakeType === 'MEMU') {
-        isSmooth = speed800m <= 60 && speed500m <= 40 && speed100m <= 20 && speed50m <= 20;
+        isSmooth = speed800m <= 60 && speed500m <= 40 && speed100m <= 30 && speed50m <= 20;
     } else if (rakeType === 'GOODS') {
         isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 10;
     } else {
