@@ -117,10 +117,20 @@
             <div id="violations" class="tab-pane"></div>
            <div id="cli-observation" class="tab-pane">
     <h2>CLI Observation</h2>
+    <div style="background-color: #fffbe6; border-left: 5px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #664d03;">
+    <h4 style="margin-top: 0; font-weight: bold;">कृपया ध्यान दें!</h4>
+    <p style="margin-bottom: 0;">कृपया रिपोर्ट को ध्यान से पढ़ें। <strong>डाउनलोड बटन</strong> दबाने से पहले सभी विवरणों की समीक्षा कर लें। जैसे ही आप डाउनलोड पर क्लिक करेंगे, यह डेटा अंतिम रूप से गूगल शीट में सहेज दिया जाएगा और आप मुख्य पृष्ठ पर वापस चले जाएँगे। यह प्रक्रिया डुप्लीकेट एंट्री को रोकने के लिए की गई है, कृपया डुप्लीकेट एंट्री करने से बचें।</p>
+</div>
     <textarea id="cliRemarks" rows="4" placeholder="Please enter at least 15 words in CLI Observation....."></textarea>
 
     <h3 style="margin-top: 20px;">Abnormalities Found</h3>
     <textarea id="cliAbnormalities" rows="4" placeholder="Enter any abnormalities found..."></textarea>
+    
+    <h3 style="margin-top: 20px;">Total Abnormality Found</h3>
+    <input type="number" id="totalAbnormality" placeholder="Enter total count of abnormalities (e.g., 4)" min="0" style="width: 100%; padding: 10px; font-size: 1rem; box-sizing: border-box;">
+    
+    <h3 style="margin-top: 20px;">Action Taken</h3>
+    <textarea id="actionTaken" rows="4" placeholder="Describe the action taken..."></textarea>
 </div>
         </div>
         <button id="downloadReport" class="download-button">Download Report</button>
@@ -257,39 +267,40 @@
 
             // Driving Analysis (MODIFIED SECTION)
         document.getElementById('driving-analysis').innerHTML = `
-            <h2>Driving Analysis</h2>
-            ${reportData.stops?.length > 0 ? `
-                <table class="report-table">
-                    <tr>
-                        <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
-                        <th>800m</th><th>500m</th><th>100m</th><th>50m</th>
-                        <th>System Generated Analysis</th>
-                        <th>CLI Remark</th>
-                    </tr>
-                    ${reportData.stops.map((stop, index) => `
-                        <tr>
-                            <td>${stop.group}</td>
-                            <td>${stop.stopLocation}</td>
-                            <td>${stop.timeString}</td>
-                            <td>${stop.startTiming}</td>
-                            <td>${(stop.kilometer / 1000).toFixed(2)}</td>
-                            <td>${stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A'}</td>
-                            <td>${stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A'}</td>
-                            <td>${stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A'}</td>
-                            <td>${stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A'}</td>
-                            <td class="system-analysis">
-                                <select class="cli-analysis system-analysis-dropdown" data-stop-index="${index}">
-                                    <option value="Smooth" ${stop.brakingTechnique === 'Smooth' ? 'selected' : ''}>Smooth</option>
-                                    <option value="Late" ${stop.brakingTechnique === 'Late' ? 'selected' : ''}>Late</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input type="text" class="cli-remark-input-row" data-stop-index="${index}" placeholder="Enter remark..." style="width: 95%;">
-                            </td>
-                        </tr>
-                    `).join('')}
-                </table>
-            ` : '<p>No stops found in the selected range.</p>'}
+              <h2>Driving Analysis</h2>
+    ${reportData.stops?.length > 0 ? `
+        <table class="report-table">
+            <tr>
+                <th>Sr. No.</th><th>Stop Location</th><th>Stop Timing</th><th>Start Timing</th><th>Km</th>
+                <th>1000m</th><th>800m</th><th>500m</th><th>100m</th><th>50m</th>
+                <th>System Generated Analysis</th>
+                <th>CLI Remark</th>
+            </tr>
+            ${reportData.stops.map((stop, index) => `
+                <tr>
+                    <td>${stop.group}</td>
+                    <td>${stop.stopLocation}</td>
+                    <td>${stop.timeString}</td>
+                    <td>${stop.startTiming}</td>
+                    <td>${(stop.kilometer / 1000).toFixed(2)}</td>
+                    <td>${stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A'}</td>
+                    <td>${stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A'}</td>
+                    <td>${stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A'}</td>
+                    <td>${stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A'}</td>
+                    <td>${stop.speedsBefore[4] ? parseFloat(stop.speedsBefore[4]).toFixed(0) : 'N/A'}</td>
+                    <td class="system-analysis">
+                        <select class="cli-analysis system-analysis-dropdown" data-stop-index="${index}">
+                            <option value="Smooth" ${stop.brakingTechnique === 'Smooth' ? 'selected' : ''}>Smooth</option>
+                            <option value="Late" ${stop.brakingTechnique === 'Late' ? 'selected' : ''}>Late</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="cli-remark-input-row" data-stop-index="${index}" placeholder="Enter remark..." style="width: 95%;">
+                    </td>
+                </tr>
+            `).join('')}
+        </table>
+    ` : '<p>No stops found in the selected range.</p>'}
         `;
             // Station Timings
             document.getElementById('station-timings').innerHTML = `
@@ -815,25 +826,17 @@
                 y += 10;
 
                 if (reportData.stops?.length > 0) {
-                    const colWidthsStops = { srNo: 10, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 15, speed800m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 20, cliRemark: 30 };
+                    const colWidthsStops = { srNo: 8, stopLocation: 22, stopTiming: 22, startTiming: 22, kilometer: 12, speed1000m: 12, speed800m: 12, speed500m: 12, speed100m: 12, speed50m: 12, systemAnalysis: 20, cliRemark: 23 };
                     const totalTableWidthStops = Object.values(colWidthsStops).reduce((a, b) => a + b, 0);
                     doc.setFontSize(10);
                     doc.setFillColor(0, 51, 102);
 
                     // Define headers and wrap them
                     const headers = [
-                        'Sr. No.',
-                        'Stop Location',
-                        'Stop Timing',
-                        'Start Timing',
-                        'Km',
-                        '800m',
-                        '500m',
-                        '100m',
-                        '50m',
-                        'System Generated Analysis',
-                        'CLI Remark'
-                    ];
+    'Sr. No.', 'Stop Location', 'Stop Timing', 'Start Timing', 'Km',
+    '1000m', '800m', '500m', '100m', '50m',
+    'System Generated Analysis', 'CLI Remark'
+];
                     const headerLines = headers.map((header, idx) => wrapText(header, Object.values(colWidthsStops)[idx] - 2, 10));
                     const maxHeaderLines = Math.max(...headerLines.map(lines => lines.length));
                     const headerRowHeight = maxHeaderLines * 6;
@@ -880,18 +883,16 @@
 
     // ab rowData ko nayi values ke saath banao
     const rowData = [
-        `${stop.group}`,
-        stop.stopLocation,
-        stop.timeString,
-        stop.startTiming,
-        `${(stop.kilometer / 1000).toFixed(3)}`,
-        stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A',
-        stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A',
-        stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A',
-        stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A',
-        finalSystemAnalysis, // Yahan badlav hua hai
-        cliRemark             // Yahan badlav hua hai
-    ];
+    `${stop.group}`, stop.stopLocation, stop.timeString, stop.startTiming,
+    `${(stop.kilometer / 1000).toFixed(3)}`,
+    stop.speedsBefore[0] ? parseFloat(stop.speedsBefore[0]).toFixed(0) : 'N/A', // 1000m
+    stop.speedsBefore[1] ? parseFloat(stop.speedsBefore[1]).toFixed(0) : 'N/A', // 800m
+    stop.speedsBefore[2] ? parseFloat(stop.speedsBefore[2]).toFixed(0) : 'N/A', // 500m
+    stop.speedsBefore[3] ? parseFloat(stop.speedsBefore[3]).toFixed(0) : 'N/A', // 100m
+    stop.speedsBefore[4] ? parseFloat(stop.speedsBefore[4]).toFixed(0) : 'N/A', // 50m
+    finalSystemAnalysis,
+    cliRemark
+];
                         const lines = rowData.map((text, idx) => wrapText(text, Object.values(colWidthsStops)[idx] - 2, 10));
                         const maxLines = Math.max(...lines.map(l => l.length));
                         rowHeight = maxLines * 5;
@@ -1247,49 +1248,86 @@
                doc.addPage();
                y = margin;
 
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(12);
-                doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10);
-                doc.text('CLI Observation', margin, y);
-                doc.setDrawColor(0, 51, 102);
-                doc.line(margin, y + 2, margin + 50, y + 2);
-                y += 10;
+                // Upar waala code hatane ke baad, yeh poora block paste karein
 
-                const cliRemarks = document.getElementById('cliRemarks').value.trim() || 'No remarks provided.';
-                const remarkLines = wrapText(cliRemarks, contentWidth - 4, 10);
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                remarkLines.forEach((line, index) => {
-                    y = checkPageOverflow(y, 8);
-                    doc.text(line, margin + 2, y + 6);
-                    y += 8;
-                });
-                // --- Start of New Code ---
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(12);
+doc.setTextColor(0, 0, 0);
+y = checkPageOverflow(y, 10);
+doc.text('CLI Observation', margin, y);
+doc.setDrawColor(0, 51, 102);
+doc.line(margin, y + 2, margin + 50, y + 2);
+y += 10;
 
-                y += 10; // Add some space
+const cliRemarks = document.getElementById('cliRemarks').value.trim() || 'No remarks provided.';
+const remarkLines = wrapText(cliRemarks, contentWidth - 4, 10);
+doc.setFontSize(10);
+doc.setFont('helvetica', 'normal');
+remarkLines.forEach((line) => {
+    y = checkPageOverflow(y, 8);
+    doc.text(line, margin + 2, y + 6);
+    y += 8;
+});
+y += 10; // Space after section
 
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(12);
-                doc.setTextColor(0, 0, 0);
-                y = checkPageOverflow(y, 10);
-                doc.text('Abnormalities Found', margin, y);
-                doc.setDrawColor(0, 51, 102);
-                doc.line(margin, y + 2, margin + 50, y + 2);
-                y += 10;
+// Section: Abnormalities Found
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(12);
+y = checkPageOverflow(y, 10);
+doc.text('Abnormalities Found', margin, y);
+doc.setDrawColor(0, 51, 102);
+doc.line(margin, y + 2, margin + 50, y + 2);
+y += 10;
 
-                const cliAbnormalities = document.getElementById('cliAbnormalities').value.trim() || 'No abnormalities reported.';
-                const abnormalityLines = wrapText(cliAbnormalities, contentWidth - 4, 10);
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                abnormalityLines.forEach((line, index) => {
-                    y = checkPageOverflow(y, 8);
-                    doc.text(line, margin + 2, y + 6);
-                    y += 8;
-                });
+const cliAbnormalities = document.getElementById('cliAbnormalities').value.trim() || 'NIL';
+const abnormalityLines = wrapText(cliAbnormalities, contentWidth - 4, 10);
+doc.setFontSize(10);
+doc.setFont('helvetica', 'normal');
+abnormalityLines.forEach((line) => {
+    y = checkPageOverflow(y, 8);
+    doc.text(line, margin + 2, y + 6);
+    y += 8;
+});
+y += 10; // Space after section
 
-                // --- End of New Code ---
+// Section: Total Abnormality Found
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(12);
+y = checkPageOverflow(y, 10);
+doc.text('Total Abnormality Found', margin, y);
+doc.setDrawColor(0, 51, 102);
+doc.line(margin, y + 2, margin + 50, y + 2);
+y += 10;
 
+const totalAbnormalityText = document.getElementById('totalAbnormality').value.trim() || 'NIL';
+const totalAbnormalityLines = wrapText(totalAbnormalityText, contentWidth - 4, 10);
+doc.setFontSize(10);
+doc.setFont('helvetica', 'normal');
+totalAbnormalityLines.forEach(line => {
+    y = checkPageOverflow(y, 8);
+    doc.text(line, margin + 2, y + 6);
+    y += 8;
+});
+y += 10; // Space after section
+
+// Section: Action Taken
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(12);
+y = checkPageOverflow(y, 10);
+doc.text('Action Taken', margin, y);
+doc.setDrawColor(0, 51, 102);
+doc.line(margin, y + 2, margin + 50, y + 2);
+y += 10;
+
+const actionTakenText = document.getElementById('actionTaken').value.trim() || 'NIL';
+const actionTakenLines = wrapText(actionTakenText, contentWidth - 4, 10);
+doc.setFontSize(10);
+doc.setFont('helvetica', 'normal');
+actionTakenLines.forEach(line => {
+    y = checkPageOverflow(y, 8);
+    doc.text(line, margin + 2, y + 6);
+    y += 8;
+});
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);

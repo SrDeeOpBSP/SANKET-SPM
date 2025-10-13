@@ -1,56 +1,28 @@
-// googlesheet.js (Updated on 23-July-2025)
+// googlesheet.js (Updated with new fields and redirect logic)
 
 async function sendDataToGoogleSheet(data) {
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbytfdq9ljtGxhJoERSNI5lq0czISWzP0GVdRTg76iTcijAqy-yuJX6MCMv8C6F2Prep/exec';
-    // --- START: YEH NAYA CODE ADD KAREIN ---
-    // Yah sunishchit karega ki 'Type of SPM' hamesha data mein shaamil ho.
-    // Yah 'reportData.trainDetails' se value nikalta hai, jo report.html par dikh rahi hai.
-    if (!data.trainDetails.find(d => d.label === 'SPM Type')) {
-        const spmTypeFromUI = reportData.trainDetails.find(d => d.label === 'SPM Type')?.value || 'N/A';
-        data.trainDetails.push({ label: 'SPM Type', value: spmTypeFromUI });
-    }
-    // --- END: NAYA CODE ---
-
-    // General CLI Observation and abnormalities
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbzrJqN2MNxpVhtOLBH3TZPUiFyP6F2dVTsAJso5sawc_6IE13LyIpxNtR9R6x234209/exec';
+    
+    // Add data from all CLI observation textareas
     data.cliObservation = document.getElementById('cliRemarks').value.trim() || 'NIL';
     data.abnormality = document.getElementById('cliAbnormalities').value.trim() || 'NIL';
+    data.totalAbnormality = document.getElementById('totalAbnormality').value.trim() || 'NIL';
+    data.actionTaken = document.getElementById('actionTaken').value.trim() || 'NIL';
     
-    // BFT and BPT remarks
+    // Add BFT and BPT remarks
     data.bftRemark = document.getElementById('bftRemark').value.trim() || 'NA';
     data.bptRemark = document.getElementById('bptRemark').value.trim() || 'NA';
 
-    // --- START: MODIFICATION FOR DRIVING ANALYSIS ---
-    // Har stop ke liye report data ko update karein, jismein latest analysis aur remarks shamil hon
+    // Update stop remarks from the UI
     if (data.stops && Array.isArray(data.stops)) {
         data.stops.forEach((stop, index) => {
-            // "System Analysis" dropdown se vartaman value prapt karein
             const systemAnalysisSelect = document.querySelector(`.system-analysis-dropdown[data-stop-index="${index}"]`);
             stop.finalSystemAnalysis = systemAnalysisSelect ? systemAnalysisSelect.value : stop.brakingTechnique;
 
-            // "CLI Remark" input field se vartaman value prapt karein
             const cliRemarkInput = document.querySelector(`.cli-remark-input-row[data-stop-index="${index}"]`);
             stop.cliRemark = cliRemarkInput ? cliRemarkInput.value.trim() : 'NA';
         });
     }
-    // --- END: MODIFICATION FOR DRIVING ANALYSIS ---
-
-    // --- START: DUPLICATE PREVENTION LOGIC ---
-    // 1. Create a Unique ID from report details
-    const trainNumber = data.trainDetails?.find(d => d.label === 'Train Number')?.value || 'N/A';
-    const locoNumber = data.trainDetails?.find(d => d.label === 'Loco Number')?.value || 'N/A';
-    const analysisTime = data.trainDetails?.find(d => d.label === 'Analysis Time')?.value || 'N/A';
-    const uniqueId = `report_${trainNumber}_${locoNumber}_${analysisTime.replace(/[^\w]/g, '_')}`;
-
-    // 2. Check localStorage if this report has been sent before
-    if (localStorage.getItem(uniqueId)) {
-        const userWantsToResubmit = confirm("This report data has already been sent to the Google Sheet. Do you want to send it again?");
-        if (!userWantsToResubmit) {
-            console.log('Submission cancelled by user to prevent duplicate entry.');
-            // Stop the sheet submission but allow the PDF download to proceed.
-            return;
-        }
-    }
-    // --- END: DUPLICATE PREVENTION LOGIC ---
 
     try {
         await fetch(appsScriptUrl, {
@@ -60,16 +32,9 @@ async function sendDataToGoogleSheet(data) {
             body: JSON.stringify(data)
         });
         console.log('Data successfully sent to Google Sheet.');
-        alert('Data successfully sent to Google Sheet!'); // Inform the user
-
-        // --- START: DUPLICATE PREVENTION LOGIC (FLAGGING) ---
-        // 3. Flag the report as sent in localStorage
-        localStorage.setItem(uniqueId, 'true');
-        // --- END: DUPLICATE PREVENTION LOGIC (FLAGGING) ---
-
     } catch (error) {
         console.error('Error sending data to Google Sheet:', error);
-        alert('There was an error sending the data to Google Sheet. Please check the console.'); // Inform user of error
+        alert('There was an error sending the data to Google Sheet. Please check the console.');
     }
 }
 
@@ -77,20 +42,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadButton = document.getElementById('downloadReport');
     
     if (downloadButton) {
-        downloadButton.addEventListener('click', () => {
+        downloadButton.addEventListener('click', async () => {
+            // Disable the button immediately to prevent multiple clicks
+            downloadButton.disabled = true;
+            downloadButton.textContent = 'Processing...';
+
             const reportDataString = localStorage.getItem('spmReportData');
             if (reportDataString) {
                 const reportData = JSON.parse(reportDataString);
                 
-                // Yeh function ab data bhejne se pehle usse modify karega
-                sendDataToGoogleSheet(reportData);
-            }
-            
-            if (typeof generatePDF === 'function') {
-                // PDF function data bhejne ke baad bhi call hoga
-                generatePDF();
+                // 1. Send data to Google Sheet
+                await sendDataToGoogleSheet(reportData);
+                
+                // 2. Generate the PDF
+                if (typeof generatePDF === 'function') {
+                    generatePDF();
+                } else {
+                    console.error('generatePDF function is not defined.');
+                }
+
+                // 3. Inform user and redirect
+                alert('Report has been downloaded and data submitted. You will now be redirected to the main page.');
+                localStorage.removeItem('spmReportData'); // Clean up old data
+                window.location.href = 'index.html'; // Redirect to the main form
             } else {
-                console.error('generatePDF function is not defined.');
+                alert('Error: Report data not found. Please try again.');
+                downloadButton.disabled = false;
+                downloadButton.textContent = 'Download Report';
             }
         });
     }

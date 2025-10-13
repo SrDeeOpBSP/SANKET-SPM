@@ -3,16 +3,16 @@ const spmConfig = {
     eventCodes: { zeroSpeed: 'STOP' },
     brakeTests: {
         GOODS: {
-            bft: { minSpeed: 10, maxSpeed: 22, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 35, maxSpeed: 50, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 40, maxSpeed: 50, maxDuration: 60 * 1000 }
         },
         COACHING: {
-            bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 60, maxSpeed: 70, maxDuration: 60 * 1000 }
         },
         MEMU: {
-            bft: { minSpeed: 20, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 60, maxSpeed: 70, maxDuration: 60 * 1000 }
         }
     }
 };
@@ -781,7 +781,7 @@ const finalStops = stops.map(stop => {
         stopLocation = sectionStart && sectionEnd ? `${sectionStart}-${sectionEnd}` : 'Unknown Section';
     }
 
-    const distancesBefore = [800, 500, 100, 50];
+    const distancesBefore = [1000, 800, 500, 100, 50];
     const speedsBefore = distancesBefore.map(targetDistance => {
         let closestRow = null;
         let minDistanceDiff = Infinity;
@@ -891,27 +891,32 @@ console.log('Enhanced Stops:', stops);
                 }
 
                 // --- BPT Check ---
-                if (!bptDetails && !bptMissed) {
-                    if (speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
-                        const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bpt.maxDuration);
-                        if (result && result.timeDiff > 1) {
-                            const speedReduction = speed - result.speed;
-                            if (speedReduction >= 5) {
-                                bptDetails = {
-                                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                                    startSpeed: speed.toFixed(2),
-                                    endSpeed: result.speed.toFixed(2),
-                                    reduction: speedReduction.toFixed(2),
-                                    timeTaken: result.timeDiff.toFixed(0),
-                                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                                };
-                            }
-                        }
-                    } else if (speed > brakeTestsConfig.bpt.maxSpeed) {
-                        bptMissed = true; // BPT ka mauka gaya
-                    }
-                }
-
+               if (!bptDetails && !bptMissed) {
+    if (speed >= brakeTestsConfig.bpt.minSpeed && speed <= brakeTestsConfig.bpt.maxSpeed) {
+        // Yahaan 'normalizedData' ka istemaal karein
+        const result = trackSpeedReduction(normalizedData, i, brakeTestsConfig.bpt.maxDuration); 
+        if (result && result.timeDiff > 1) {
+            const speedReduction = speed - result.speed;
+            
+            // Naya niyam: Speed kam se kam 40% ghatni chahiye
+            const requiredReduction = speed * 0.40; 
+            
+            if (speedReduction >= requiredReduction) {
+                bptDetails = {
+                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                    startSpeed: speed.toFixed(2),
+                    endSpeed: result.speed.toFixed(2),
+                    reduction: speedReduction.toFixed(2),
+                    timeTaken: result.timeDiff.toFixed(0),
+                    // Yahaan bhi 'normalizedData' ka istemaal karein
+                    endTime: normalizedData[result.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                };
+            }
+        }
+    } else if (speed > brakeTestsConfig.bpt.maxSpeed) {
+        bptMissed = true; // BPT ka mauka gaya
+    }
+}
                 if ((bftDetails || bftMissed) && (bptDetails || bptMissed)) {
                     break;
                 }

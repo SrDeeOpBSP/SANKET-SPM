@@ -12,17 +12,17 @@ const spmConfig = {
         zeroSpeed: 'STOP' // Internal code for zero speed
     },
     brakeTests: {
-        GOODS: {
-            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 35, maxSpeed: 50, maxDuration: 60 * 1000 }
+       GOODS: {
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 40, maxSpeed: 50, maxDuration: 60 * 1000 }
         },
         COACHING: {
-            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 60, maxSpeed: 70, maxDuration: 60 * 1000 }
         },
         MEMU: {
-            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 60, maxSpeed: 70, maxDuration: 60 * 1000 }
         }
     }
 };
@@ -431,8 +431,8 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
         let atStation = window.stationSignalData.find(row => row['SECTION'] === section && Math.abs((parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDist) - stop.kilometer) <= 400);
         if (atStation) stop.stopLocation = `${atStation['STATION']} ${atStation['SIGNAL NAME'] || ''}`.trim();
         else { let sec = stations.slice(0, -1).find((s, i) => stop.kilometer >= s.distance && stop.kilometer < stations[i+1].distance); stop.stopLocation = sec ? `${sec.name}-${stations[stations.indexOf(sec) + 1].name}` : 'Unknown'; }
-        const speedsBefore = [800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(2) || 'N/A');
-        const [s8, s5, s1, s0] = speedsBefore.map(s => parseFloat(s) || Infinity);
+        const speedsBefore = [1000, 800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(2) || 'N/A');
+        const [s10, s8, s5, s1, s0] = speedsBefore.map(s => parseFloat(s) || Infinity);
         const smooth = rakeType === 'GOODS' ? (s8 <= 30 && s5 <= 25 && s1 <= 15 && s0 <= 10) : (s8 <= 60 && s5 <= 45 && s1 <= 30 && s0 <= 20);
         stop.brakingTechnique = smooth ? 'Smooth' : 'Late';
         stop.speedsBefore = speedsBefore;
@@ -501,20 +501,31 @@ function getBrakeTestDetails(data, brakeConf) {
 
         // --- BPT Check ---
         // Agar BPT abhi tak nahi mila hai aur speed sahi range mein hai
-        if (!bptDetails && (row.Speed >= brakeConf.bpt.minSpeed && row.Speed <= brakeConf.bpt.maxSpeed)) {
-            const res = trackSpeedReduction(data, i, brakeConf.bpt.maxDuration);
-            // Agar speed mein 5 kmph ya zyada ki kami aayi hai
-            if (res && res.timeDiff > 1 && (row.Speed - res.speed) >= 5) {
-                bptDetails = {
-                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                    startSpeed: row.Speed.toFixed(2),
-                    endSpeed: res.speed.toFixed(2),
-                    reduction: (row.Speed - res.speed).toFixed(2),
-                    timeTaken: res.timeDiff.toFixed(0),
-                    endTime: data[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                };
-            }
+        // --- BPT Check ---
+// Agar BPT abhi tak nahi mila hai aur speed sahi range mein hai
+if (!bptDetails && (row.Speed >= brakeConf.bpt.minSpeed && row.Speed <= brakeConf.bpt.maxSpeed)) {
+    const res = trackSpeedReduction(data, i, brakeConf.bpt.maxDuration);
+    // Agar speed mein kami aayi hai
+    if (res && res.timeDiff > 1) {
+        const speedReduction = row.Speed - res.speed;
+        
+        // --- MODIFIED LOGIC ---
+        // Naya niyam: Speed kam se kam 40% ghatni chahiye
+        const requiredReduction = row.Speed * 0.40;
+
+        if (speedReduction >= requiredReduction) {
+            bptDetails = {
+                time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                startSpeed: row.Speed.toFixed(2),
+                endSpeed: res.speed.toFixed(2),
+                reduction: speedReduction.toFixed(2),
+                timeTaken: res.timeDiff.toFixed(0),
+                endTime: data[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+            };
         }
+        // --- END OF MODIFICATION ---
+    }
+}
 
         // Agar dono test mil gaye hain, to aage check karne ki zaroorat nahi
         if (bftDetails && bptDetails) {
