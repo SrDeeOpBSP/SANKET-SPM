@@ -905,44 +905,70 @@ console.log('Enhanced Stops:', stops);
 // --- END: MODIFIED STOP PROCESSING ---
 
             // --- START: BEHTAR BRAKE TEST LOGIC ---
-            const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
-                const startSpeed = data[startIdx].Speed;
-                const startTime = data[startIdx].Time.getTime();
-                let lowestSpeed = startSpeed;
-                let lowestSpeedIdx = startIdx;
-                let speedHitZero = false; // Check karega ki speed 0 to nahi hui
+         const trackSpeedReduction = (data, startIdx, maxDurationMs) => {
+    const startSpeed = data[startIdx].Speed;
+    const startTime = data[startIdx].Time.getTime();
+    let lowestSpeed = startSpeed;
+    let lowestSpeedIdx = startIdx;
+    let speedHitZero = false;
 
-                for (let i = startIdx + 1; i < data.length; i++) {
-                    const currentSpeed = data[i].Speed;
-                    const currentTime = data[i].Time.getTime();
+    // --- NAYE VARIABLES: Grace period ko track karne ke liye ---
+    let increaseStartTime = null;
+    let speedAtIncreaseStart = 0;
 
-                    // Agar speed 0 ho gayi to test invalid hai
-                    if (currentSpeed === 0) {
-                        speedHitZero = true;
-                        break;
-                    }
-                    if (currentTime - startTime > maxDurationMs) break;
-                    if (currentSpeed > lowestSpeed + 0.5) break;
-                    
-                    if (currentSpeed < lowestSpeed) {
-                        lowestSpeed = currentSpeed;
-                        lowestSpeedIdx = i;
-                    }
-                }
-                
-                // Agar speed 0 hui ya kam nahi hui, to test valid nahi hai
-                if (speedHitZero || lowestSpeedIdx === startIdx) {
-                    return null;
-                }
+    for (let i = startIdx + 1; i < data.length; i++) {
+        const currentSpeed = data[i].Speed;
+        const currentTime = data[i].Time.getTime();
 
-                const endTime = data[lowestSpeedIdx].Time.getTime();
-                return { 
-                    index: lowestSpeedIdx, 
-                    speed: lowestSpeed, 
-                    timeDiff: (endTime - startTime) / 1000 
-                };
-            };
+        // Purani conditions waise hi rahengi
+        if (currentTime - startTime > maxDurationMs) break;
+        if (currentSpeed === 0) {
+            speedHitZero = true;
+            break;
+        }
 
+        // --- START: UPDATED LOGIC ---
+        if (currentSpeed <= lowestSpeed) {
+            // Case 1: Speed kam ho rahi hai ya sthir hai (Yeh normal hai)
+            lowestSpeed = currentSpeed;
+            lowestSpeedIdx = i;
+            // Agar koi grace period chal raha tha, to use reset kar dein
+            increaseStartTime = null;
+        } else {
+            // Case 2: Speed badh rahi hai, ab hum apni shartein check karenge
+            
+            // Agar speed badhna abhi shuru hi hua hai
+            if (increaseStartTime === null) {
+                increaseStartTime = currentTime; // Badhne ka samay note karein
+                speedAtIncreaseStart = lowestSpeed; // Kis speed se badhna shuru hui, woh note karein
+            }
+
+            // Check karein ki limit cross hui ya nahi
+            const increaseDuration = currentTime - increaseStartTime; // Kitni der se badh rahi hai
+            const increaseMagnitude = currentSpeed - speedAtIncreaseStart; // Kitni zyada badh gayi hai
+
+            if (increaseMagnitude > 2 || increaseDuration > 2000) {
+                // Shart toot gayi: Ya to 2 Kmph se zyada badh gayi, ya 2 second se zyada ho gaye
+                // Test ko yahin rok dein
+                break;
+            }
+            // Agar yahan tak pahuche hain, matlab speed thodi badhi hai par limit ke andar hai.
+            // Isliye loop ko chalne dein.
+        }
+        // --- END: UPDATED LOGIC ---
+    }
+
+    if (speedHitZero || lowestSpeedIdx === startIdx) {
+        return null;
+    }
+
+    const endTime = data[lowestSpeedIdx].Time.getTime();
+    return {
+        index: lowestSpeedIdx,
+        speed: lowestSpeed,
+        timeDiff: (endTime - startTime) / 1000
+    };
+};
             let bftDetails = null;
             let bptDetails = null;
             let bftMissed = false;

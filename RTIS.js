@@ -449,27 +449,59 @@ function getBrakeTestDetails(data, brakeConf) {
         const start = d[startIdx];
         let lowest = start;
         let endIdx = startIdx;
+        
+        // --- NAYE VARIABLES: Grace period ko track karne ke liye ---
+        let increaseStartTime = null;
+        let speedAtIncreaseStart = 0;
 
         for (let i = startIdx + 1; i < d.length; i++) {
             const curr = d[i];
-            // Agar test ka samay poora ho gaya ya speed badhne lagi, to ruk jao
-            if ((curr.Time - start.Time) > maxDur || curr.Speed > lowest.Speed + 0.5) {
+
+            // Agar test ka samay poora ho gaya, to ruk jao
+            if ((curr.Time - start.Time) > maxDur) {
                 break;
             }
             // Agar speed 0 ho gayi, to test anumaany (invalid) hai
             if (curr.Speed === 0) {
                 return null;
             }
-            // Agar speed aur kam hui, to use save kar lo
-            if (curr.Speed < lowest.Speed) {
+
+            // --- START: UPDATED LOGIC ---
+            if (curr.Speed <= lowest.Speed) {
+                // Case 1: Speed kam ho rahi hai ya sthir hai (Yeh normal hai)
                 lowest = curr;
                 endIdx = i;
+                // Agar koi grace period chal raha tha, to use reset kar dein
+                increaseStartTime = null;
+            } else {
+                // Case 2: Speed badh rahi hai, ab hum apni shartein check karenge
+                
+                // Agar speed badhna abhi shuru hi hua hai
+                if (increaseStartTime === null) {
+                    increaseStartTime = curr.Time; // Badhne ka samay note karein
+                    speedAtIncreaseStart = lowest.Speed; // Kis speed se badhna shuru hui, woh note karein
+                }
+
+                // Check karein ki limit cross hui ya nahi
+                const increaseDuration = curr.Time - increaseStartTime; // Kitni der se badh rahi hai
+                const increaseMagnitude = curr.Speed - speedAtIncreaseStart; // Kitni zyada badh gayi hai
+
+                if (increaseMagnitude > 2 || increaseDuration > 2000) {
+                    // Shart toot gayi: Ya to 2 Kmph se zyada badh gayi, ya 2 second se zyada ho gaye
+                    // Test ko yahin rok dein
+                    break;
+                }
+                // Agar yahan tak pahuche hain, matlab speed thodi badhi hai par limit ke andar hai.
+                // Isliye loop ko chalne dein.
             }
+            // --- END: UPDATED LOGIC ---
         }
+
         // Agar speed bilkul kam nahi hui, to test anumaany hai
         if (endIdx === startIdx) {
             return null;
         }
+        
         // Sahi test ki details return karo
         return {
             speed: lowest.Speed,
@@ -483,10 +515,8 @@ function getBrakeTestDetails(data, brakeConf) {
         const row = data[i];
 
         // --- BFT Check ---
-        // Agar BFT abhi tak nahi mila hai aur speed sahi range mein hai
         if (!bftDetails && (row.Speed >= brakeConf.bft.minSpeed && row.Speed <= brakeConf.bft.maxSpeed)) {
             const res = trackSpeedReduction(data, i, brakeConf.bft.maxDuration);
-            // Agar speed mein 5 kmph ya zyada ki kami aayi hai
             if (res && res.timeDiff > 1 && (row.Speed - res.speed) >= 5) {
                 bftDetails = {
                     time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
@@ -500,32 +530,24 @@ function getBrakeTestDetails(data, brakeConf) {
         }
 
         // --- BPT Check ---
-        // Agar BPT abhi tak nahi mila hai aur speed sahi range mein hai
-        // --- BPT Check ---
-// Agar BPT abhi tak nahi mila hai aur speed sahi range mein hai
-if (!bptDetails && (row.Speed >= brakeConf.bpt.minSpeed && row.Speed <= brakeConf.bpt.maxSpeed)) {
-    const res = trackSpeedReduction(data, i, brakeConf.bpt.maxDuration);
-    // Agar speed mein kami aayi hai
-    if (res && res.timeDiff > 1) {
-        const speedReduction = row.Speed - res.speed;
-        
-        // --- MODIFIED LOGIC ---
-        // Naya niyam: Speed kam se kam 40% ghatni chahiye
-        const requiredReduction = row.Speed * 0.40;
+        if (!bptDetails && (row.Speed >= brakeConf.bpt.minSpeed && row.Speed <= brakeConf.bpt.maxSpeed)) {
+            const res = trackSpeedReduction(data, i, brakeConf.bpt.maxDuration);
+            if (res && res.timeDiff > 1) {
+                const speedReduction = row.Speed - res.speed;
+                const requiredReduction = row.Speed * 0.40; // 40% rule
 
-        if (speedReduction >= requiredReduction) {
-            bptDetails = {
-                time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                startSpeed: row.Speed.toFixed(2),
-                endSpeed: res.speed.toFixed(2),
-                reduction: speedReduction.toFixed(2),
-                timeTaken: res.timeDiff.toFixed(0),
-                endTime: data[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-            };
+                if (speedReduction >= requiredReduction) {
+                    bptDetails = {
+                        time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                        startSpeed: row.Speed.toFixed(2),
+                        endSpeed: res.speed.toFixed(2),
+                        reduction: speedReduction.toFixed(2),
+                        timeTaken: res.timeDiff.toFixed(0),
+                        endTime: data[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                    };
+                }
+            }
         }
-        // --- END OF MODIFICATION ---
-    }
-}
 
         // Agar dono test mil gaye hain, to aage check karne ki zaroorat nahi
         if (bftDetails && bptDetails) {
