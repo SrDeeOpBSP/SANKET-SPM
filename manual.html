@@ -113,8 +113,8 @@
                             <li><strong>Speeds (1000m, 800m, 500m, 100m, 50m):</strong> These columns show the train's speed at key check-points before a full stop. This allows you to verify if the LP is adhering to speed reduction profiles.</li>
                             <ul>
     <li><strong>For GOODS Rake:</strong> A 'Smooth' analysis requires speeds to be ≤ 30 Kmph at 1000m, ≤ 25 Kmph at 500m, ≤ 15 Kmph at 100m, and ≤ 10 Kmph at 50m before the stop. Exceeding these suggests a 'Late' braking.</li>
-    <li><strong>For COACHING/MEMU Rake:</strong> A 'Smooth' analysis requires speeds to be ≤ 60 Kmph at 1000m, ≤ 45 Kmph at 500m, and ≤ 20 Kmph at 50m before the stop.</li>
-    <li><strong>NOTE:</strong> For Coaching Trains when train is stopping at station having stoppage,CLIs to analyze by <strong>considering the Speed to be ≤ 60 Kmph at 800m instead of 1000m</strong> </li>
+    <li><strong>For COACHING/MEMU Rake:</strong> A 'Smooth' analysis requires speeds to be ≤ 60 Kmph at 1000m, ≤ 45 Kmph at 500m,≤ 30 Kmph at 100m, and ≤ 20 Kmph at 50m before the stop.</li>
+    <li><strong>NOTE:</strong> For Coaching Trains when train is stopping at station having schedule stoppage,CLIs to analyze by <strong>considering the Speed to be ≤ 60 Kmph at 800m instead of 1000m</strong> </li>
 </ul>
                             <li><strong>System Generated Analysis:</strong> SANKET automatically classifies the braking as <strong>'Smooth'</strong> or <strong>'Late'</strong>.
                                 <ul>
@@ -277,8 +277,8 @@
                             <li><strong>गति (1000m,800m, 500m, 100m, 50m):</strong> ये कॉलम पूरी तरह से रुकने से पहले प्रमुख चेक-पॉइंट्स पर ट्रेन की गति दिखाते हैं। यह आपको यह सत्यापित करने की अनुमति देता है कि LP गति में कमी के प्रोफाइल का पालन कर रहा है या नहीं।</li>
                             <ul>
     <li><strong>GOODS रेक के लिए:</strong> 'Smooth' विश्लेषण के लिए स्टॉप से पहले 1000m पर ≤ 30 Kmph, 500m पर ≤ 25 Kmph, 100m पर ≤ 15 Kmph, और 50m पर ≤ 10 Kmph की गति आवश्यक है। इससे अधिक गति 'Late' ब्रेकिंग का संकेत देती है।</li>
-    <li><strong>COACHING/MEMU रेक के लिए:</strong> 'Smooth' विश्लेषण के लिए स्टॉप से पहले 1000m पर ≤ 60 Kmph, 500m पर ≤ 45 Kmph, और 50m पर ≤ 20 Kmph की गति आवश्यक है।</li>
-    <li><strong>नोट:</strong> कोचिंग ट्रेनों के लिए, जब ट्रेन का स्टेशन पर ठहराव होता है, तो CLI को विश्लेषण करते समय 1000 मीटर के बजाय 800 मीटर की दूरी पर गति ≤ 60 किमी/घं मानकर विश्लेषण करना चाहिए।</li>
+    <li><strong>COACHING/MEMU रेक के लिए:</strong> 'Smooth' विश्लेषण के लिए स्टॉप से पहले 1000m पर ≤ 60 Kmph, 500m पर ≤ 45 Kmph,100m पर ≤ 30 Kmph, और 50m पर ≤ 20 Kmph की गति आवश्यक है।</li>
+    <li><strong>नोट:</strong> कोचिंग ट्रेनों के लिए, जब ट्रेन का निर्धारित स्टेशन पर ठहराव होता है, तो CLI को विश्लेषण करते समय 1000 मीटर के बजाय 800 मीटर की दूरी पर गति ≤ 60 किमी/घं मानकर विश्लेषण करना चाहिए।</li>
 </ul>
                             <li><strong>सिस्टम जनरेटेड विश्लेषण:</strong> SANKET स्वचालित रूप से ब्रेकिंग को <strong>'Smooth'</strong> या <strong>'Late'</strong> के रूप में वर्गीकृत करता है।
                                 <ul>
@@ -351,4 +351,5 @@
 
     <script src="manual.js"></script>
 </body>
+
 </html>
