@@ -9,76 +9,236 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
+        /* === Root Variables for Theming === */
+        :root {
+            --font-main: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --accent-color: #0056b3;
+            --accent-glow: rgba(0, 86, 179, 0.2);
+            --border-color: #dee2e6;
+            --box-bg: #ffffff;
+            --input-bg: #f8f9fa;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+        }
+
+        /* === General Body and Layout === */
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .report-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--box-bg);
+            padding: 25px 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+        }
+
+        /* === Header and Logo === */
+        .logo {
+            display: block;
+            margin: 0 auto 15px auto;
+            width: 250px;
+            height: auto;
+        }
+
+        h1, h3, h4 { text-align: center; }
+
+        h1 {
+            color: var(--accent-color);
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        h2 {
+            color: var(--text-color);
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 10px;
+            font-size: 1.6rem;
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+
+        h3 {
+            color: var(--text-muted);
+            font-weight: 400;
+            margin: 5px 0 20px 0;
+        }
+
+        /* === Loading Spinner === */
         .loading-overlay {
             display: flex;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8);
             justify-content: center;
             align-items: center;
             z-index: 1000;
+            backdrop-filter: blur(5px);
         }
         .loading-spinner {
             border: 8px solid #f3f3f3;
-            border-top: 8px solid #ec0c0c;
+            border-top: 8px solid var(--accent-color);
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            width: 60px; height: 60px;
             animation: spin 1s linear infinite;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .error-message {
-            color: #ff0000;
-            text-align: center;
-            margin: 20px;
-            font-size: 1.2rem;
-        }
-        canvas {
-            max-width: 100%;
-            width: 800px !important;
-            height: 400px !important;
-            margin: 20px auto;
-            display: block;
-        }
-        textarea {
-            width: 100%;
-            padding: 10px;
-            font-size: 1rem;
-        }
-        select.cli-analysis {
-            width: 100%;
-            padding: 5px;
-            font-size: 0.9rem;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #fff;
-            cursor: pointer;
-        }
-        td.system-analysis {
-            word-wrap: break-word;
-            white-space: normal;
-        }
-        select.cli-analysis, input.cli-remark-input {
-            width: 100%;
-            padding: 5px;
-            font-size: 0.9rem;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #fff;
-            box-sizing: border-box;
-        }
+
+        /* === Buttons (Download & Back) === */
         .download-button, .back-button {
-            display: none; /* Buttons default roop se hide rahenge */
+            display: none; /* Initially hidden */
+            width: 48%;
+            margin-top: 25px;
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .download-button {
+            background: linear-gradient(45deg, #28a745, #218838);
+        }
+        .back-button {
+            background: linear-gradient(45deg, #fd7e14, #e85d0c);
+            float: right;
+        }
+        .download-button:hover, .back-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
         }
         .download-button:disabled {
-            background-color: #cccccc; /* Disabled button ka color */
+            background: #adb5bd;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* === Other Elements === */
+        .error-message { color: var(--danger-color); text-align: center; margin: 20px; font-size: 1.2rem; }
+        canvas { max-width: 100%; width: 800px !important; height: 400px !important; margin: 20px auto; display: block; border: 1px solid var(--border-color); border-radius: 8px; }
+        td.system-analysis { word-wrap: break-word; white-space: normal; }
+        select.cli-analysis, input.cli-remark-input { width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 4px; background-color: #fff; box-sizing: border-box; }
+
+        /* =================================== */
+        /* === CLI Observation Tab Styling === */
+        /* =================================== */
+        #cli-observation textarea,
+        #cli-observation input[type="text"],
+        #cli-observation input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: var(--font-main);
+            line-height: 1.5;
+        }
+        #cli-observation textarea:focus,
+        #cli-observation input[type="text"]:focus,
+        #cli-observation input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        #totalAbnormality {
+            font-weight: bold;
+            font-size: 1.8rem;
+            text-align: center;
+            cursor: not-allowed;
+            background-color: #e9ecef;
+            color: var(--accent-color);
+            border: 2px dashed var(--accent-color);
+        }
+
+        #abnormalities-checkbox-container {
+            background: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 15px;
+        }
+
+        .abnormality-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 18px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .abnormality-group:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .abnormality-group label {
+            display: flex;
+            align-items: center;
+            min-width: 280px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .abnormality-group input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            height: 22px;
+            width: 22px;
+            background-color: #fff;
+            border: 2px solid #adb5bd;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 15px;
+            position: relative;
+            transition: all 0.2s ease-in-out;
+        }
+        .abnormality-group input[type="checkbox"]:hover {
+            border-color: var(--accent-color);
+        }
+        .abnormality-group input[type="checkbox"]:checked {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        .abnormality-group input[type="checkbox"]:checked::after {
+            content: '✔';
+            position: absolute;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -52%);
+        }
+
+        .abnormality-group input[type="text"] {
+            flex-grow: 1;
+            margin-left: 20px;
+            display: none; /* Initially hidden */
         }
     </style>
 </head>
@@ -116,32 +276,65 @@
             <div id="speed-range-summary" class="tab-pane"></div>
             <div id="violations" class="tab-pane"></div>
            <div id="cli-observation" class="tab-pane">
-    <h2>CLI Observation</h2>
-    <div style="background-color: #fffbe6; border-left: 5px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #664d03;">
-    <h4 style="margin-top: 0; font-weight: bold;">कृपया ध्यान दें!</h4>
-    <p style="margin-bottom: 0;">कृपया रिपोर्ट को ध्यान से पढ़ें। <strong>डाउनलोड बटन</strong> दबाने से पहले सभी विवरणों की समीक्षा कर लें। जैसे ही आप डाउनलोड पर क्लिक करेंगे, यह डेटा अंतिम रूप से गूगल शीट में सहेज दिया जाएगा और आप मुख्य पृष्ठ पर वापस चले जाएँगे। यह प्रक्रिया डुप्लीकेट एंट्री को रोकने के लिए की गई है, कृपया डुप्लीकेट एंट्री करने से बचें।</p>
-</div>
-    <textarea id="cliRemarks" rows="4" placeholder="Please enter at least 15 words in CLI Observation....."></textarea>
-
-    <h3 style="margin-top: 20px;">Abnormalities Found</h3>
-    <textarea id="cliAbnormalities" rows="4" placeholder="Enter any abnormalities found..."></textarea>
-    
-    <h3 style="margin-top: 20px;">Total Abnormality Found</h3>
-    <input type="number" id="totalAbnormality" placeholder="Enter total count of abnormalities (e.g., 4)" min="0" style="width: 100%; padding: 10px; font-size: 1rem; box-sizing: border-box;">
-    
-    <h3 style="margin-top: 20px;">Action Taken</h3>
-    <textarea id="actionTaken" rows="4" placeholder="Describe the action taken..."></textarea>
-</div>
+        <h2>OVERALL OBSERVATION OF CLI</h2>
+        <div style="background-color: #fffbe6; border-left: 5px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #664d03;">
+          <h4 style="margin-top: 0; font-weight: bold;">कृपया ध्यान दें!</h4>
+          <p style="margin-bottom: 0;">कृपया रिपोर्ट को ध्यान से पढ़ें। <strong>डाउनलोड बटन</strong> दबाने से पहले सभी विवरणों की समीक्षा कर लें। जैसे ही आप डाउनलोड पर क्लिक करेंगे, यह डेटा अंतिम रूप से गूगल शीट में सहेज दिया जाएगा और आप मुख्य पृष्ठ पर वापस चले जाएँगे। यह प्रक्रिया डुप्लीकेट एंट्री को रोकने के लिए की गई है, कृपया डुप्लीकेट एंट्री करने से बचें।</p>
         </div>
-        <button id="downloadReport" class="download-button">Download Report</button>
-        <button id="backToForm" class="back-button">Back to Form</button>
-    </div>
+        
+        <textarea id="cliRemarks" rows="4" placeholder="Please enter at least 15 words in OVERALL OBSERVATION OF CLI....."></textarea>
+
+        <h3 style="margin-top: 20px;">Detail of Abnormalities</h3>
+        <div id="abnormalities-checkbox-container">
+          <div class="abnormality-group">
+            <label><input type="checkbox" id="chk-bft-nd" data-text-id="">BFT not done</label>
+          </div>
+          <div class="abnormality-group">
+            <label><input type="checkbox" id="chk-bpt-nd" data-text-id="">BPT not done</label>
+          </div>
+          <div class="abnormality-group">
+            <label><input type="checkbox" id="chk-bft-rule" data-text-id="txt-bft-rule">BFT not done as per rule</label>
+            <input type="text" id="txt-bft-rule" placeholder="Enter remark for BFT not done as per rule,e.g BFT done at 25Kmph which is above 20Kmph.">
+          </div>
+          <div class="abnormality-group">
+            <label><input type="checkbox" id="chk-bpt-rule" data-text-id="txt-bpt-rule">BPT not done as per rule</label>
+            <input type="text" id="txt-bpt-rule" placeholder="Enter remark for BPT not done as per rule,e.g BFT done at 75Kmph which is above 70Kmph.">
+          </div>
+          <div class="abnormality-group">
+            <label><input type="checkbox" id="chk-late-ctrl" data-text-id="txt-late-ctrl">Late Controlling</label>
+            <input type="text" id="txt-late-ctrl" placeholder="Enter remark for Late Controlling, e.g Speed is more than 60Kmph at 1000m">
+          </div>
+          <div class="abnormality-group">
+            <label><input type="checkbox" id="chk-overspeed" data-text-id="txt-overspeed">Over speeding</label>
+            <input type="text" id="txt-overspeed" placeholder="Enter remark for Over speeding,e.g Speed Exceeded 110Kmph for 60Sec between in AKT-NIA">
+          </div>
+          <div class="abnormality-group">
+            <label><input type="checkbox" id="chk-others" data-text-id="txt-others">Other Abnormalities</label>
+            <input type="text" id="txt-others" placeholder="Enter remark for Other Abnormalities,e.g. SPM data not fed,...etc">
+          </div>
+        </div>
+        
+        <textarea id="cliAbnormalities" rows="4" style="display:none;"></textarea>
+        
+        <h3 style="margin-top: 20px;">Number of Abnormalities Found</h3>
+        <input type="number" id="totalAbnormality" placeholder="This will be auto-counted" min="0" readonly style="background-color: #e9ecef;">
+        
+        <h3 style="margin-top: 20px;">Action Taken</h3>
+        <textarea id="actionTaken" rows="4" placeholder="Describe the action taken..."></textarea>
+      </div>
+      </div> 
+    <button id="downloadReport" class="download-button">Download Report</button>
+    <button id="backToForm" class="back-button">Back to Form</button>
+
+  </div>
+       
     <script>
         // Show loading overlay
         const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.style.display = 'flex';
 
         // Load report data
+        let previousAbnormalityCounts = {};
         let reportData;
         try {
             reportData = JSON.parse(localStorage.getItem('spmReportData') || '{}');
@@ -186,6 +379,7 @@
             `;
 
             // Crew Details
+           // Crew Details
             document.getElementById('crew-details').innerHTML = `
                 <h2>Crew Details</h2>
                 <div class="crew-details-container">
@@ -203,8 +397,21 @@
                     </div>
                 </div>
                 <h3>Total Stops: ${reportData.stopCount || 0}</h3>
+
+                <div id="lp-abnormalities-section" style="margin-top: 25px; border-top: 1px solid #ccc; padding-top: 15px;">
+                    <h3>Previous 10 Abnormalities of Loco Pilot</h3>
+                    <div id="lp-abnormalities-container">
+                        <p>Loading previous records...</p>
+                    </div>
+                </div>
             `;
 
+            // Fetch and display the abnormalities from Google Sheet
+            if (reportData.lpDetails && reportData.lpDetails.length > 0) {
+                // Extracts the ID from a string like "LP ID: P12345"
+                const lpId = reportData.lpDetails[0].split(': ')[1]?.trim();
+                fetchAndDisplayAbnormalities(lpId);
+            }
             // Brake Tests
             const rakeType = reportData.trainDetails?.find(d => d.label === 'Type of Rake')?.value || 'GOODS';
             document.getElementById('brake-tests').innerHTML = `
@@ -551,7 +758,52 @@
                 });
             });
         }
-
+async function fetchAndDisplayAbnormalities(lpId) {
+            const container = document.getElementById('lp-abnormalities-container');
+            if (!lpId || lpId === 'N/A') {
+                container.innerHTML = '<p>LP ID not provided.</p>';
+                return;
+            }
+        
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/1XcmhgkXH0fQlUQG3oLmEUrVnUVk3p_gyYqBMPyXfGv0/values/Sheet1?key=AIzaSyAw23pJz0K9fZb2rRRAe2C2cJDilRc0Kac`;
+        
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+                const data = await response.json();
+                const rows = data.values || [];
+        
+                let lpFound = false;
+                const abnormalities = [];
+                // Reset global counts
+                previousAbnormalityCounts = { bft_nd: 0, bpt_nd: 0, bft_rule: 0, bpt_rule: 0, late_ctrl: 0, overspeed: 0, others: 0 };
+        
+                rows.forEach(row => {
+                    if (row[5]?.trim() === lpId) { // LP_ID_COL = 5
+                        lpFound = true;
+                        if (row[38] && !isNaN(parseInt(row[39])) && parseInt(row[39]) > 0) abnormalities.push(row[38]); // ABNORMALITY_COL=38, COUNT_COL=39
+                        // Sum up previous counts
+                        previousAbnormalityCounts.bft_nd += parseInt(row[41] || 0); // AP=41
+                        previousAbnormalityCounts.bpt_nd += parseInt(row[42] || 0); // AQ=42
+                        previousAbnormalityCounts.bft_rule += parseInt(row[43] || 0); // AR=43
+                        previousAbnormalityCounts.bpt_rule += parseInt(row[44] || 0); // AS=44
+                        previousAbnormalityCounts.late_ctrl += parseInt(row[45] || 0); // AT=45
+                        previousAbnormalityCounts.overspeed += parseInt(row[46] || 0); // AU=46
+                        previousAbnormalityCounts.others += parseInt(row[47] || 0); // AV=47
+                    }
+                });
+                
+                console.log("Fetched Previous Counts:", previousAbnormalityCounts);
+        
+                if (!lpFound) container.innerHTML = '<p style="font-weight: bold; color: #17a2b8;">No prior analysis records found.</p>';
+                else if (abnormalities.length === 0) container.innerHTML = '<p style="font-weight: bold; color: #28a745;">NIL abnormality found previously.</p>';
+                else container.innerHTML = `<ol>${abnormalities.slice(-10).reverse().map(ab => `<li>${ab}</li>`).join('')}</ol>`;
+        
+            } catch (error) {
+                console.error('Error fetching abnormalities:', error);
+                container.innerHTML = '<p style="color: #dc3545;">Could not fetch previous records.</p>';
+            }
+        }
         // PDF generation
         function generatePDF() {
             loadingOverlay.style.display = 'flex';
@@ -1254,7 +1506,7 @@ doc.setFont('helvetica', 'bold');
 doc.setFontSize(12);
 doc.setTextColor(0, 0, 0);
 y = checkPageOverflow(y, 10);
-doc.text('CLI Observation', margin, y);
+doc.text('OVERALL OBSERVATION OF CLI', margin, y);
 doc.setDrawColor(0, 51, 102);
 doc.line(margin, y + 2, margin + 50, y + 2);
 y += 10;
@@ -1269,32 +1521,11 @@ remarkLines.forEach((line) => {
     y += 8;
 });
 y += 10; // Space after section
-
-// Section: Abnormalities Found
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(12);
-y = checkPageOverflow(y, 10);
-doc.text('Abnormalities Found', margin, y);
-doc.setDrawColor(0, 51, 102);
-doc.line(margin, y + 2, margin + 50, y + 2);
-y += 10;
-
-const cliAbnormalities = document.getElementById('cliAbnormalities').value.trim() || 'NIL';
-const abnormalityLines = wrapText(cliAbnormalities, contentWidth - 4, 10);
-doc.setFontSize(10);
-doc.setFont('helvetica', 'normal');
-abnormalityLines.forEach((line) => {
-    y = checkPageOverflow(y, 8);
-    doc.text(line, margin + 2, y + 6);
-    y += 8;
-});
-y += 10; // Space after section
-
 // Section: Total Abnormality Found
 doc.setFont('helvetica', 'bold');
 doc.setFontSize(12);
 y = checkPageOverflow(y, 10);
-doc.text('Total Abnormality Found', margin, y);
+doc.text('Number of Abnormalities Found', margin, y);
 doc.setDrawColor(0, 51, 102);
 doc.line(margin, y + 2, margin + 50, y + 2);
 y += 10;
@@ -1309,6 +1540,44 @@ totalAbnormalityLines.forEach(line => {
     y += 8;
 });
 y += 10; // Space after section
+
+// Section: Abnormalities Found (from checkboxes)
+                doc.setFont('helvetica', 'bold').setFontSize(12).setTextColor(0).text('Detail of Abnormalities', margin, y);
+                y += 10;
+                // 'cliAbnormalities' की वैल्यू अब googlesheet.js द्वारा सेट की जाएगी
+                const cliAbnormalities = document.getElementById('cliAbnormalities').value.trim() || 'NIL';
+                doc.setFontSize(10).setFont('helvetica', 'normal');
+                doc.splitTextToSize(cliAbnormalities, contentWidth).forEach(line => {
+                    y = checkPageOverflow(y, 6);
+                    doc.text(line, margin, y);
+                    y += 6;
+                });
+                y += 10;
+                
+                // Section: Historical Abnormalities Profile (New)
+                doc.setFont('helvetica', 'bold').setFontSize(12).text('Total of Last 10 Analysis occuring Abnormalities Till Date', margin, y);
+                y = checkPageOverflow(y, 10);
+                y += 10;
+
+                const historicalBody = [
+                    ['BFT not done', (previousAbnormalityCounts.bft_nd || 0) + (document.getElementById('chk-bft-nd').checked ? 1 : 0)],
+                    ['BPT not done', (previousAbnormalityCounts.bpt_nd || 0) + (document.getElementById('chk-bpt-nd').checked ? 1 : 0)],
+                    ['BFT not done as per rule', (previousAbnormalityCounts.bft_rule || 0) + (document.getElementById('chk-bft-rule').checked ? 1 : 0)],
+                    ['BPT not done as per rule', (previousAbnormalityCounts.bpt_rule || 0) + (document.getElementById('chk-bpt-rule').checked ? 1 : 0)],
+                    ['Late Controlling', (previousAbnormalityCounts.late_ctrl || 0) + (document.getElementById('chk-late-ctrl').checked ? 1 : 0)],
+                    ['Over speeding', (previousAbnormalityCounts.overspeed || 0) + (document.getElementById('chk-overspeed').checked ? 1 : 0)],
+                    ['Others Abnormalities', (previousAbnormalityCounts.others || 0) + (document.getElementById('chk-others').checked ? 1 : 0)]
+                ];
+                
+                doc.autoTable({
+                    head: [['Abnormality Type', 'Total Count']],
+                    body: historicalBody,
+                    startY: y,
+                    theme: 'grid',
+                    headStyles: { fillColor: [0, 51, 102] }
+                });
+                y = doc.lastAutoTable.finalY + 10;
+
 
 // Section: Action Taken
 doc.setFont('helvetica', 'bold');
@@ -1343,34 +1612,29 @@ actionTakenLines.forEach(line => {
             }
         }
 
-        // Event listeners
-       // Event listeners
-        //document.getElementById('downloadReport').addEventListener('click', generatePDF);
-        document.getElementById('backToForm').addEventListener('click', () => {
-            localStorage.removeItem('spmReportData');
-            window.location.href = 'index.html';
-        });
 
-        // Initialize
+       // ✅ यह सही और संयुक्त (combined) कोड है
         document.addEventListener('DOMContentLoaded', () => {
             try {
+                // 1. रिपोर्ट और टैब को रेंडर करें
                 renderReport();
                 initializeTabs();
 
-                // --- DOWNLOAD VALIDATION LOGIC START ---
+                // 2. "Back to Form" बटन का लॉजिक
+                document.getElementById('backToForm').addEventListener('click', () => {
+                    localStorage.removeItem('spmReportData');
+                    window.location.href = 'index.html';
+                });
+
+                // 3. डाउनलोड बटन के लिए वैलिडेशन
                 const downloadBtn = document.getElementById('downloadReport');
                 const cliRemarksTextarea = document.getElementById('cliRemarks');
-
-                // Shuruaat mein button ko disable rakhein
                 downloadBtn.disabled = true;
-                downloadBtn.title = 'Please enter at least 15 words in CLI Observation.';
+                downloadBtn.title = 'Please enter at least 15 words in OVERALL OBSERVATION OF CLI SECTION.';
 
-                // Text area mein type karne par check karein
                 cliRemarksTextarea.addEventListener('input', () => {
                     const text = cliRemarksTextarea.value.trim();
-                    // Shabdon ko ginein
                     const wordCount = text ? text.split(/\s+/).filter(word => word.length > 0).length : 0;
-
                     if (wordCount >= 15) {
                         downloadBtn.disabled = false;
                         downloadBtn.title = 'Click to download the report.';
@@ -1379,7 +1643,24 @@ actionTakenLines.forEach(line => {
                         downloadBtn.title = `Please enter at least ${15 - wordCount} more word(s).`;
                     }
                 });
-                // --- DOWNLOAD VALIDATION LOGIC END ---
+
+                // 4. असामान्यता (Abnormality) चेकबॉक्स का लॉजिक
+                const totalAbnormalityInput = document.getElementById('totalAbnormality');
+                document.querySelectorAll('#abnormalities-checkbox-container input[type="checkbox"]').forEach(chk => {
+                    chk.addEventListener('change', () => {
+                        const textId = chk.dataset.textId;
+                        if (textId) {
+                            const textField = document.getElementById(textId);
+                            textField.style.display = chk.checked ? 'block' : 'none';
+                            textField.required = chk.checked;
+                            if (!chk.checked) {
+                                textField.value = '';
+                            }
+                        }
+                        const count = document.querySelectorAll('#abnormalities-checkbox-container input[type="checkbox"]:checked').length;
+                        totalAbnormalityInput.value = count;
+                    });
+                });
 
             } catch (error) {
                 console.error('Error initializing report:', error);
