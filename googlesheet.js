@@ -1,7 +1,7 @@
 // googlesheet.js (Updated with 'no-cors' mode and redirect logic)
 
 async function sendDataToGoogleSheet(data) {
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbwoBglK8UITQZwZ4cnWBRiy2105XvrbyBzPcMUFNrZyzlMffvAF_EVJVgW6DGrjz_bm/exec';
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxW6rSZx8XzLnKKhDu9SMx3vU9Fhm2pQRPrrrGawW4-QRMk8o9nQJExIBsCSRogUyK-/exec';
 
     // --- START: NEW ABNORMALITY DATA COLLECTION ---
 
@@ -123,4 +123,5 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
 });
