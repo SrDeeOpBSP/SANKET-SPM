@@ -778,20 +778,21 @@ async function fetchAndDisplayAbnormalities(lpId) {
                 // Reset global counts
                 previousAbnormalityCounts = { bft_nd: 0, bpt_nd: 0, bft_rule: 0, bpt_rule: 0, late_ctrl: 0, overspeed: 0, others: 0 };
         
-                rows.forEach(row => {
-                    if (row[5]?.trim() === lpId) { // LP_ID_COL = 5
-                        lpFound = true;
-                        if (row[38] && !isNaN(parseInt(row[39])) && parseInt(row[39]) > 0) abnormalities.push(row[38]); // ABNORMALITY_COL=38, COUNT_COL=39
-                        // Sum up previous counts
-                        previousAbnormalityCounts.bft_nd += parseInt(row[41] || 0); // AP=41
-                        previousAbnormalityCounts.bpt_nd += parseInt(row[42] || 0); // AQ=42
-                        previousAbnormalityCounts.bft_rule += parseInt(row[43] || 0); // AR=43
-                        previousAbnormalityCounts.bpt_rule += parseInt(row[44] || 0); // AS=44
-                        previousAbnormalityCounts.late_ctrl += parseInt(row[45] || 0); // AT=45
-                        previousAbnormalityCounts.overspeed += parseInt(row[46] || 0); // AU=46
-                        previousAbnormalityCounts.others += parseInt(row[47] || 0); // AV=47
-                    }
-                });
+               rows.forEach(row => {
+                    if (row[5]?.trim() === lpId) { // LP_ID_COL = 5
+                        lpFound = true;
+                        // --- CHANGED: COUNT_COL 39 se 40 (AO) ho gaya hai ---
+                        if (row[38] && !isNaN(parseInt(row[40])) && parseInt(row[40]) > 0) abnormalities.push(row[38]); // ABNORMALITY_COL=38, COUNT_COL=40
+                        // Sum up previous counts --- SABHI INDICES UPDATE HO GAYE HAIN ---
+                        previousAbnormalityCounts.bft_nd += parseInt(row[42] || 0); // AQ=42 (was 41)
+                        previousAbnormalityCounts.bpt_nd += parseInt(row[43] || 0); // AR=43 (was 42)
+                        previousAbnormalityCounts.bft_rule += parseInt(row[44] || 0); // AS=44 (was 43)
+                        previousAbnormalityCounts.bpt_rule += parseInt(row[45] || 0); // AT=45 (was 44)
+                        previousAbnormalityCounts.late_ctrl += parseInt(row[46] || 0); // AU=46 (was 45)
+                        previousAbnormalityCounts.overspeed += parseInt(row[47] || 0); // AV=47 (was 46)
+                        previousAbnormalityCounts.others += parseInt(row[48] || 0); // AW=48 (was 47)
+                    }
+                });
                 
                 console.log("Fetched Previous Counts:", previousAbnormalityCounts);
         
