@@ -784,10 +784,20 @@ const finalStops = stops.map(stop => {
         return closestRow ? Math.floor(closestRow.Speed).toString() : 'N/A';
     });
 
-    const [speed800m, speed500m, speed100m, speed50m] = speedsBefore.map(speed => parseFloat(speed) || Infinity);
+    // Line 919 ko isse replace karein (Yeh Sahi hai)
+
+// Pehle sabhi speeds ko parse karein
+const parsedSpeeds = speedsBefore.map(speed => parseFloat(speed) || Infinity);
+
+// Ab, array se sahi values chunein (index ke hisaab se)
+// parsedSpeeds[0] hai 1000m speed (jo logic mein nahi chahiye)
+const speed800m = parsedSpeeds[1]; // 800m speed
+const speed500m = parsedSpeeds[2]; // 500m speed
+const speed100m = parsedSpeeds[3]; // 100m speed
+const speed50m  = parsedSpeeds[4]; // 50m speed
     let isSmooth;
     if (rakeType === 'COACHING' || rakeType === 'MEMU') {
-        isSmooth = speed800m <= 60 && speed500m <= 40 && speed100m <= 30 && speed50m <= 20;
+        isSmooth = speed800m <= 60 && speed500m <= 45 && speed100m <= 30 && speed50m <= 20;
     } else if (rakeType === 'GOODS') {
         isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 10;
     } else {
