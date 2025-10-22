@@ -640,19 +640,20 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
             let stopGroup = 0;
             let potentialStops = [];
 
-            for (let i = 0; i < normalizedData.length; i++) {
-                const row = normalizedData[i];
-                if (row.Event === spmConfig.eventCodes.zeroSpeed && row.Speed === 0) {
-                    potentialStops.push({
-                        index: i,
-                        time: row.Time,
-                        timeString: row.Time.toLocaleString(/*...*/),
-                        timeLabel: row.Time.toLocaleTimeString(/*...*/),
-                        // FIX: Yahaan absolute 'CumulativeDistance' ki jagah nayi 'Distance' (relative meters) istemaal karein.
-                        kilometer: row.Distance
-                    });
-                }
-            }
+           for (let i = 0; i < normalizedData.length; i++) {
+                const row = normalizedData[i];
+                // Check if the event signifies zero speed AND the speed is actually 0
+                if (row.Event === spmConfig.eventCodes.zeroSpeed && row.Speed === 0) {
+                    potentialStops.push({
+                        index: i,
+                        time: row.Time,
+                        // --- THIS IS THE LINE TO CHANGE ---
+                        timeString: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }), // Set hour12 to false
+                        timeLabel: row.Time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }), // Also update label if needed
+                        kilometer: row.Distance // Use relative distance in meters
+                    });
+                }
+            }
 
             console.log('Potential Stops:', potentialStops);
 
