@@ -367,25 +367,87 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 // --- ALL HELPER ANALYSIS FUNCTIONS ---
 
 function getOverSpeedDetails(data, maxSpeed, stations) {
-    const details = []; let group = null;
+    const details = [];
+    let group = null;
     data.forEach((row, index) => {
+        // Check agar speed max permissible speed se zyada hai
         if (row.Speed > maxSpeed) {
-            let sectionName = stations.slice(0, -1).find((s, i) => row.Distance >= s.distance && row.Distance < stations[i + 1].distance);
-            sectionName = sectionName ? `${sectionName.name}-${stations[stations.indexOf(sectionName) + 1].name}` : 'Unknown';
-            if (!group || group.section !== sectionName || (index > 0 && (row.Time - data[index-1].Time) > 10000)) {
-                if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
-                group = { section: sectionName, startTime: row.Time, endTime: row.Time, minSpeed: row.Speed, maxSpeed: row.Speed };
+            let sectionName = 'Unknown';
+            // Section ka naam pata karein
+            for (let i = 0; i < stations.length - 1; i++) {
+                const startStation = stations[i];
+                const endStation = stations[i + 1];
+                // RTIS mein Distance meters mein hai
+                if (row.Distance >= startStation.distance && row.Distance < endStation.distance) {
+                    sectionName = `${startStation.name}-${endStation.name}`;
+                    break;
+                }
+            }
+             // Fallback agar station ke beech nahi hai (optional, par rakha hai)
+             if (sectionName === 'Unknown') {
+                 const atStationOrSignal = window.stationSignalData.find(signalRow => {
+                     if (signalRow['SECTION'] !== section) return false; // Ensure section variable is accessible or passed
+                     const signalAbsoluteDistanceCSV = parseFloat(signalRow['CUMMULATIVE DISTANT(IN Meter)']);
+                     // Note: Ensure 'initialDistance' is accessible if needed, or adjust logic
+                     // Assuming row.Distance is already relative for RTIS after normalization
+                     const rangeStart = signalAbsoluteDistanceCSV - fromDistance - 400; // Adjust for relative distance
+                     const rangeEnd = signalAbsoluteDistanceCSV - fromDistance + 400; // Adjust for relative distance
+                     return row.Distance >= rangeStart && row.Distance <= rangeEnd;
+                 });
+                 if (atStationOrSignal) {
+                     sectionName = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
+                 }
+            }
+
+
+            // Naya group shuru karne ya section badalne ki logic
+            // Time comparison ke liye .getTime() use karein
+            if (!group || group.section !== sectionName || (index > 0 && (row.Time.getTime() - data[index - 1].Time.getTime()) > 10000)) {
+                // Agar pehle se koi group chal raha tha, use save karein
+                if (group) {
+                    details.push({
+                        section: group.section,
+                        timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}`,
+                        speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}`
+                    });
+                }
+                // Naya group shuru karein
+                group = {
+                    section: sectionName,
+                    startTime: row.Time,
+                    endTime: row.Time,
+                    minSpeed: row.Speed,
+                    maxSpeed: row.Speed
+                };
             } else {
+                // Maujooda group ko update karein
                 group.endTime = row.Time;
                 group.minSpeed = Math.min(group.minSpeed, row.Speed);
                 group.maxSpeed = Math.max(group.maxSpeed, row.Speed);
             }
-        } else if (group) {
-            details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
-            group = null;
+        } else {
+            // --- YAHI HAI ASLI SUDHAAR ---
+            // Agar speed MPS se neeche jaati hai, toh current group ko band kar dein
+            if (group) {
+                details.push({
+                    section: group.section,
+                    timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}`,
+                    speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}`
+                });
+                group = null; // Group ko reset karein
+            }
+            // --- SUDHAAR KHATAM ---
         }
     });
-    if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
+    // Loop ke baad aakhri bacha hua group (agar hai) ko add karein
+    if (group) {
+         details.push({
+            section: group.section,
+            timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}`,
+            speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}`
+        });
+    }
+    console.log('OverSpeed Details:', details); // Console log ko function ke andar rakhein
     return details;
 }
 

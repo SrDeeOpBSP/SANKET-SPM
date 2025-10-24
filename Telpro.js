@@ -286,7 +286,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
             console.log('Normalized Stations:', normalizedStations);
 
-            const overSpeedDetails = [];
+           const overSpeedDetails = [];
             let overSpeedGroup = null;
             normalizedData.forEach((row, index) => {
                 if (row.Speed > maxPermissibleSpeed) {
@@ -314,8 +314,8 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         }
                     }
 
-                    if (!overSpeedGroup || overSpeedGroup.section !== sectionName || 
-                        (index > 0 && (row.Time - normalizedData[index-1].Time) > 10000)) {
+                    if (!overSpeedGroup || overSpeedGroup.section !== sectionName ||
+                        (index > 0 && (row.Time - normalizedData[index - 1].Time) > 10000)) {
                         if (overSpeedGroup) {
                             overSpeedDetails.push({
                                 section: overSpeedGroup.section,
@@ -335,6 +335,18 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                         overSpeedGroup.minSpeed = Math.min(overSpeedGroup.minSpeed, row.Speed);
                         overSpeedGroup.maxSpeed = Math.max(overSpeedGroup.maxSpeed, row.Speed);
                     }
+                } else {
+                    // --- YAHAN BADLAAV KIYA GAYA HAI ---
+                    // Agar speed MPS se neeche jaati hai, toh current group ko band kar dein
+                    if (overSpeedGroup) {
+                        overSpeedDetails.push({
+                            section: overSpeedGroup.section,
+                            timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
+                            speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
+                        });
+                        overSpeedGroup = null; // Group ko reset karein
+                    }
+                    // --- BADLAAV KHATAM ---
                 }
             });
 

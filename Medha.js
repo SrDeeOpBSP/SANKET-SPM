@@ -421,26 +421,51 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
             const overSpeedDetails = [];
             let overSpeedGroup = null;
             normalizedData.forEach((row, index) => {
+                // Check agar speed max permissible speed se zyada hai
                 if (row.Speed > maxPermissibleSpeed) {
                     let sectionName = 'Unknown';
+                    // Section ka naam pata karein
                     for (let i = 0; i < normalizedStations.length - 1; i++) {
                         const startStation = normalizedStations[i];
                         const endStation = normalizedStations[i + 1];
+                        // Medha mein Distance meters mein hai
                         if (row.Distance >= startStation.distance && row.Distance < endStation.distance) {
                             sectionName = `${startStation.name}-${endStation.name}`;
                             break;
                         }
                     }
 
-                    if (!overSpeedGroup || overSpeedGroup.section !== sectionName || 
-                        (index > 0 && (row.Time.getTime() - normalizedData[index-1].Time.getTime()) > 10000)) {
+                    // Fallback logic agar station ke beech mein nahi hai (jaise station yard)
+                    if (sectionName === 'Unknown') {
+                        const atStationOrSignal = window.stationSignalData.find(signalRow => {
+                            if (signalRow['SECTION'] !== section) return false;
+                            // Station/Signal data mein distance meters mein hoti hai
+                            const signalAbsoluteDistanceCSV = parseFloat(signalRow['CUMMULATIVE DISTANT(IN Meter)']);
+                            // SPM data mein bhi Distance meters mein hai (normalizedData ke andar)
+                            // InitialDistance ko dhyan mein rakh kar absolute distance calculate karein
+                            const currentAbsoluteDistanceSPM = initialDistance + row.Distance;
+                            const rangeStart = signalAbsoluteDistanceCSV - 400; // 400 meter tolerance
+                            const rangeEnd = signalAbsoluteDistanceCSV + 400;
+                            return currentAbsoluteDistanceSPM >= rangeStart && currentAbsoluteDistanceSPM <= rangeEnd;
+                        });
+                        if (atStationOrSignal) {
+                            sectionName = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
+                        }
+                    }
+
+
+                    // Naya group shuru karne ya section badalne ki logic
+                    if (!overSpeedGroup || overSpeedGroup.section !== sectionName ||
+                        (index > 0 && (row.Time.getTime() - normalizedData[index-1].Time.getTime()) > 10000)) { // Use .getTime() for comparison
+                        // Agar pehle se koi group chal raha tha, use save karein
                         if (overSpeedGroup) {
                             overSpeedDetails.push({
                                 section: overSpeedGroup.section,
-                                timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}`,
+                                timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
                                 speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
                             });
                         }
+                        // Naya group shuru karein
                         overSpeedGroup = {
                             section: sectionName,
                             startTime: row.Time,
@@ -449,17 +474,31 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                             maxSpeed: row.Speed
                         };
                     } else {
+                        // Maujooda group ko update karein
                         overSpeedGroup.endTime = row.Time;
                         overSpeedGroup.minSpeed = Math.min(overSpeedGroup.minSpeed, row.Speed);
                         overSpeedGroup.maxSpeed = Math.max(overSpeedGroup.maxSpeed, row.Speed);
                     }
+                } else {
+                    // --- YAHI HAI ASLI SUDHAAR ---
+                    // Agar speed MPS se neeche jaati hai, toh current group ko band kar dein
+                    if (overSpeedGroup) {
+                        overSpeedDetails.push({
+                            section: overSpeedGroup.section,
+                            timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
+                            speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
+                        });
+                        overSpeedGroup = null; // Group ko reset karein
+                    }
+                    // --- SUDHAAR KHATAM ---
                 }
             });
 
+            // Loop ke baad aakhri bacha hua group (agar hai) ko add karein
             if (overSpeedGroup) {
                 overSpeedDetails.push({
                     section: overSpeedGroup.section,
-                    timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false})}`,
+                    timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false})}`,
                     speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
                 });
             }

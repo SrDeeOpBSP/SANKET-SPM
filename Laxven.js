@@ -374,53 +374,83 @@ if (isNewFormat) {
 
                 console.log('Normalized Stations:', normalizedStations);
 
-                const overSpeedDetails = [];
-                let overSpeedGroup = null;
-                normalizedData.forEach((row, index) => {
-                    if (row.Speed > maxPermissibleSpeed) {
-                        let sectionName = 'Unknown';
-                        for (let i = 0; i < normalizedStations.length - 1; i++) {
-                            const startStation = normalizedStations[i];
-                            const endStation = normalizedStations[i + 1];
-                            if (row.Distance >= startStation.distance && row.Distance < endStation.distance) {
-                                sectionName = `${startStation.name}-${endStation.name}`;
-                                break;
-                            }
-                        }
+               const overSpeedDetails = [];
+                let overSpeedGroup = null;
+                normalizedData.forEach((row, index) => {
+                    if (row.Speed > maxPermissibleSpeed) {
+                        let sectionName = 'Unknown';
+                        for (let i = 0; i < normalizedStations.length - 1; i++) {
+                            const startStation = normalizedStations[i];
+                            const endStation = normalizedStations[i + 1];
+                            const rowDistanceM = row.Distance;
+                            if (rowDistanceM >= startStation.distance && rowDistanceM < endStation.distance) {
+                                sectionName = `${startStation.name}-${endStation.name}`;
+                                break;
+                            }
+                        }
 
-                        if (!overSpeedGroup || overSpeedGroup.section !== sectionName || 
-                            (index > 0 && (row.Time - normalizedData[index-1].Time) > 10000)) {
-                            if (overSpeedGroup) {
-                                overSpeedDetails.push({
-                                    section: overSpeedGroup.section,
-                                    timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
-                                    speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
-                                });
-                            }
-                            overSpeedGroup = {
-                                section: sectionName,
-                                startTime: row.Time,
-                                endTime: row.Time,
-                                minSpeed: row.Speed,
-                                maxSpeed: row.Speed
-                            };
-                        } else {
-                            overSpeedGroup.endTime = row.Time;
-                            overSpeedGroup.minSpeed = Math.min(overSpeedGroup.minSpeed, row.Speed);
-                            overSpeedGroup.maxSpeed = Math.max(overSpeedGroup.maxSpeed, row.Speed);
-                        }
-                    }
-                });
+                        // Fallback logic agar station ke beech mein nahi hai (jaise station yard)
+                        if (sectionName === 'Unknown') {
+                            const atStationOrSignal = window.stationSignalData.find(signalRow => {
+                                if (signalRow['SECTION'] !== section) return false;
+                                const signalDistance = parseFloat(signalRow['CUMMULATIVE DISTANT(IN Meter)']) - fromDistance;
+                                const rangeStart = signalDistance - 400;
+                                const rangeEnd = signalDistance + 400;
+                                return row.Distance >= rangeStart && row.Distance <= rangeEnd;
+                            });
+                            if (atStationOrSignal) {
+                                sectionName = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
+                            }
+                        }
 
-                if (overSpeedGroup) {
-                    overSpeedDetails.push({
-                        section: overSpeedGroup.section,
-                        timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
-                        speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
-                    });
-                }
+                  	// Naya group shuru karne ya section badalne ki logic
+                    if (!overSpeedGroup || overSpeedGroup.section !== sectionName || 
+                        (index > 0 && (row.Time - normalizedData[index-1].Time) > 10000)) {
+                        if (overSpeedGroup) {
+                            overSpeedDetails.push({
+                                section: overSpeedGroup.section,
+                                timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
+                                speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
+                            });
+                        }
+                        // Naya group shuru karein
+                        overSpeedGroup = {
+                            section: sectionName,
+                            startTime: row.Time,
+                            endTime: row.Time,
+                            minSpeed: row.Speed,
+                            maxSpeed: row.Speed
+                        };
+                    } else {
+                        // Maujooda group ko update karein
+                        overSpeedGroup.endTime = row.Time;
+                        overSpeedGroup.minSpeed = Math.min(overSpeedGroup.minSpeed, row.Speed);
+                        overSpeedGroup.maxSpeed = Math.max(overSpeedGroup.maxSpeed, row.Speed);
+                    }
+                } else {
+                    // --- YAHI HAI ASLI SUDHAAR ---
+                    // Agar speed MPS se neeche jaati hai, toh current group ko band kar dein
+                    if (overSpeedGroup) {
+                        overSpeedDetails.push({
+                            section: overSpeedGroup.section,
+                            timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
+                            speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
+                        });
+                        overSpeedGroup = null; // Group ko reset karein
+                    }
+                }
+            });
 
-                console.log('OverSpeed Details:', overSpeedDetails);
+            // Aakhri bacha hua group (agar hai) ko add karein
+            if (overSpeedGroup) {
+                overSpeedDetails.push({
+                    section: overSpeedGroup.section,
+                    timeRange: `${overSpeedGroup.startTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}-${overSpeedGroup.endTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`,
+                    speedRange: `${overSpeedGroup.minSpeed.toFixed(2)}-${overSpeedGroup.maxSpeed.toFixed(2)}`
+                });
+            }
+
+            console.log('OverSpeed Details:', overSpeedDetails);
 
                 const wheelSlipDetails = [];
                 const wheelSkidDetails = [];
