@@ -1,11 +1,9 @@
-// googlesheet.js (Updated with 'no-cors' mode and redirect logic)
+// googlesheet.js (Corrected: Original Data Send + New await Logic)
 
 async function sendDataToGoogleSheet(data) {
     const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxW6rSZx8XzLnKKhDu9SMx3vU9Fhm2pQRPrrrGawW4-QRMk8o9nQJExIBsCSRogUyK-/exec';
 
-    // --- START: NEW ABNORMALITY DATA COLLECTION ---
-
-    // 1. Collect 1/0 values for each checkbox
+    // --- START: ABNORMALITY DATA COLLECTION ---
     data.abnormality_bft_nd = document.getElementById('chk-bft-nd').checked ? 1 : 0;
     data.abnormality_bpt_nd = document.getElementById('chk-bpt-nd').checked ? 1 : 0;
     data.abnormality_bft_rule = document.getElementById('chk-bft-rule').checked ? 1 : 0;
@@ -14,7 +12,6 @@ async function sendDataToGoogleSheet(data) {
     data.abnormality_overspeed = document.getElementById('chk-overspeed').checked ? 1 : 0;
     data.abnormality_others = document.getElementById('chk-others').checked ? 1 : 0;
 
-    // 2. Build the abnormality string for Column AM
     const abnormalityStrings = [];
     if (data.abnormality_bft_nd === 1) abnormalityStrings.push("BFT not done");
     if (data.abnormality_bpt_nd === 1) abnormalityStrings.push("BPT not done");
@@ -24,104 +21,155 @@ async function sendDataToGoogleSheet(data) {
     if (data.abnormality_overspeed === 1) abnormalityStrings.push(`Over speeding:- ${document.getElementById('txt-overspeed').value.trim()}`);
     if (data.abnormality_others === 1) abnormalityStrings.push(`Other Abnormalities:- ${document.getElementById('txt-others').value.trim()}`);
 
-    // This will be sent to the sheet's "Abnormality Found" column
-    data.abnormality = abnormalityStrings.join(',\n') || 'NIL';
-
-    // Also populate the hidden textarea for the PDF generation
+    data.abnormality = abnormalityStrings.join('; \n') || 'NIL'; // Use semicolon
     document.getElementById('cliAbnormalities').value = data.abnormality;
+    // --- END: ABNORMALITY DATA COLLECTION ---
 
-    // --- END: NEW ABNORMALITY DATA COLLECTION ---
-
-    // Add data from other CLI observation textareas
     data.cliObservation = document.getElementById('cliRemarks').value.trim() || 'NIL';
     data.totalAbnormality = document.getElementById('totalAbnormality').value.trim() || '0';
-    data.actionTaken = document.getElementById('actionTaken').value.trim() || 'NIL';
+    
+    // --- FIX: Read from Radio Buttons ---
+    const selectedActionRadio = document.querySelector('input[name="actionTakenRadio"]:checked');
+    data.actionTaken = selectedActionRadio ? selectedActionRadio.value : 'NIL';
 
-    // Add BFT and BPT remarks
     data.bftRemark = document.getElementById('bftRemark').value.trim() || 'NA';
     data.bptRemark = document.getElementById('bptRemark').value.trim() || 'NA';
 
-    // Update stop remarks from the UI
     if (data.stops && Array.isArray(data.stops)) {
         data.stops.forEach((stop, index) => {
             const systemAnalysisSelect = document.querySelector(`.system-analysis-dropdown[data-stop-index="${index}"]`);
             stop.finalSystemAnalysis = systemAnalysisSelect ? systemAnalysisSelect.value : stop.brakingTechnique;
-
             const cliRemarkInput = document.querySelector(`.cli-remark-input-row[data-stop-index="${index}"]`);
-            stop.cliRemark = cliRemarkInput ? cliRemarkInput.value.trim() : 'NA';
+            stop.cliRemark = cliRemarkInput ? cliRemarkInput.value.trim() : 'NIL'; // Use NIL
         });
     }
+    
+    // Clean data before sending
+    delete data.speedChartConfig;
+    delete data.stopChartConfig;
+    delete data.speedChartImage;
+    delete data.stopChartImage;
 
+    console.log("Data being sent (Original Method):", data);
+
+    // --- Using your original, working fetch logic ---
     try {
         await fetch(appsScriptUrl, {
             method: 'POST',
-            mode: 'no-cors', // <<-- महत्वपूर्ण बदलाव: यह लाइन वापस जोड़ दी गई है
+            mode: 'no-cors', 
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json' // <<< Reverted to 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data) // <<< Reverted to sending data directly
         });
 
-        // 'no-cors' मोड में, हम यह मान लेते हैं कि डेटा सफलतापूर्वक भेज दिया गया है
         console.log('Data sent to Google Sheet (assumed success in no-cors mode).');
 
     } catch (error) {
-        // यह एरर आमतौर पर नेटवर्क समस्याओं के लिए ही दिखेगा
         console.error('Error sending data to Google Sheet:', error);
         alert('There was a network error while sending the data. Please check your connection.');
+        throw error; // Stop the process
     }
 }
 
+// --- Event Listener with await logic ---
 document.addEventListener('DOMContentLoaded', () => {
     const downloadButton = document.getElementById('downloadReport');
 
     if (downloadButton) {
-        downloadButton.addEventListener('click', async () => {
+        downloadButton.addEventListener('click', async () => { // <<< Must be async
+            console.log("Download button clicked.");
+
             // --- VALIDATION START ---
             let isValid = true;
+            let firstInvalidElement = null;
+
+            // 1. Check Abnormality Remarks
             document.querySelectorAll('#abnormalities-checkbox-container input[type="checkbox"]:checked').forEach(chk => {
                 const textId = chk.dataset.textId;
                 if (textId) {
                     const textField = document.getElementById(textId);
-                    if (!textField.value.trim()) {
-                        alert(`Please enter a remark for "${chk.parentElement.textContent.trim()}".`);
-                        textField.focus();
+                    if (!textField || !textField.value.trim()) {
+                        const labelText = chk.closest('label')?.textContent.trim() || 'the selected abnormality';
+                        alert(`Please enter a remark for "${labelText}".`);
+                        if (textField && !firstInvalidElement) firstInvalidElement = textField;
                         isValid = false;
                     }
                 }
             });
+            if (!isValid) {
+                if(firstInvalidElement) firstInvalidElement.focus();
+                return;
+            }
 
-            if (!isValid) return; // Stop if validation fails
+             // 2. Check Action Taken
+             const actionSelected = document.querySelector('input[name="actionTakenRadio"]:checked');
+             if (!actionSelected) {
+                 alert('Please select an option for "Action Taken".');
+                 const firstRadio = document.getElementById('actionIntensive');
+                 if(firstRadio && !firstInvalidElement) firstInvalidElement = firstRadio;
+                 isValid = false;
+             }
+            if (!isValid) {
+                if(firstInvalidElement) firstInvalidElement.focus();
+                return;
+            }
             // --- VALIDATION END ---
 
-            // Disable the button immediately to prevent multiple clicks
+            // --- PROCESS START ---
             downloadButton.disabled = true;
-            downloadButton.textContent = 'Processing...';
+            downloadButton.textContent = 'Processing... Please Wait...';
+            loadingOverlay.style.display = 'flex';
 
             const reportDataString = localStorage.getItem('spmReportData');
             if (reportDataString) {
-                const reportData = JSON.parse(reportDataString);
-
-                // 1. Send data to Google Sheet
-                await sendDataToGoogleSheet(reportData);
-
-                // 2. Generate the PDF
-                if (typeof generatePDF === 'function') {
-                    generatePDF();
-                } else {
-                    console.error('generatePDF function is not defined.');
+                let reportData;
+                try {
+                     reportData = JSON.parse(reportDataString);
+                } catch(e) {
+                     alert("Error retrieving report data. Please go back and try again.");
+                     downloadButton.disabled = false;
+                     downloadButton.textContent = 'Download Report';
+                     loadingOverlay.style.display = 'none';
+                     return;
                 }
 
-                // 3. Inform user and redirect
-                alert('Report has been downloaded and data submitted. You will now be redirected to the main page.');
-                localStorage.removeItem('spmReportData'); // Clean up old data
-                window.location.href = 'index.html'; // Redirect to the main form
+                try {
+                    // 1. Send data to Google Sheet
+                    await sendDataToGoogleSheet(reportData);
+                    console.log("Data sending initiated.");
+
+                    // 2. Generate the PDF AND WAIT
+                    if (typeof generatePDF === 'function') {
+                        console.log("Calling generatePDF...");
+                        await generatePDF(); // <<< Wait for PDF function
+                        console.log("generatePDF process finished.");
+                        
+                        // 3. Inform user and redirect AFTER PDF
+                        alert('Data submitted and report generated. You will now be redirected.');
+                        localStorage.removeItem('spmReportData');
+                        window.location.href = 'index.html'; 
+
+                    } else {
+                        console.error('generatePDF function is not defined.');
+                        alert('Error: PDF generation function not found. Data might have been submitted.');
+                        downloadButton.disabled = false;
+                        downloadButton.textContent = 'Download Failed - Retry?';
+                        loadingOverlay.style.display = 'none';
+                    }
+                } catch (error) { // Catch errors from sendData OR generatePDF
+                    console.error("Error during process:", error);
+                    alert("An error occurred. Please check console and try again.");
+                    downloadButton.disabled = false;
+                    downloadButton.textContent = 'Download Report';
+                    loadingOverlay.style.display = 'none';
+                }
             } else {
-                alert('Error: Report data not found. Please try again.');
+                alert('Error: Report data not found. Please go back and try again.');
                 downloadButton.disabled = false;
                 downloadButton.textContent = 'Download Report';
+                loadingOverlay.style.display = 'none';
             }
-        });
-    }
-
-});
+        }); // End click listener
+    } // End if(downloadButton)
+}); // End DOMContentLoaded
