@@ -388,6 +388,20 @@ button[type="submit"]:hover {
 }
 
 /* --- 7. Day/Night Toggle Switch --- */
+
+.top-right-nav-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-right: 15px; /* Switch se doori ke liye */
+    transition: color 0.3s;
+}
+.top-right-nav-link:hover {
+    color: var(--text-color);
+    text-decoration: underline;
+}
+
 .theme-switch-wrapper {
     position: absolute;
     top: 20px;
@@ -614,10 +628,14 @@ input:checked + .slider:before {
         <img src="railway logo.png" alt="Railway Logo" class="logo">
         <div class="theme-switch-wrapper">
             <label class="theme-switch" for="checkbox">
-                <input type="checkbox" id="checkbox" />
-                <div class="slider round"></div>
-            </label>
-        </div>
+               <a href="graph.html" target="_blank" class="top-right-nav-link">
+            Signal Wise Analysis
+        </a>
+        <label class="theme-switch" for="checkbox">
+            <input type="checkbox" id="checkbox" />
+            <div class="slider round"></div>
+        </label>
+    </div>
         <h1>SANKET</h1>
         <a href="manual.html" target="_blank" class="manual-link">
            Need Help? View the User Manual
@@ -924,7 +942,6 @@ input:checked + .slider:before {
             <option value="SUMANT KUMAR BAGHMAR">SUMANT KUMAR BAGHMAR</option>
             <option value="SUNIL KUMAR GUPTA">SUNIL KUMAR GUPTA</option>
             <option value="SURENDRA KUMAR PRETA DSL">SURENDRA KUMAR PRETA DSL</option>
-            <option value="SURESH KUMAR VERMA">SURESH KUMAR VERMA</option>                
             <option value="SURESH CHANDRA">SURESH CHANDRA</option>
             <option value="SURESH CHANDRA SDL">SURESH CHANDRA SDL</option>
             <option value="SURESH SINGH CHAUHAN">SURESH SINGH CHAUHAN</option>
@@ -986,12 +1003,12 @@ input:checked + .slider:before {
         
         <h4>Visionary & Motivational Support</h4>
         <p><b>Shri Masud Alam, Sr. DEE/OP/BSP</b><br>Provided the essential leadership and encouragement that propelled this project from concept to reality.</p>
-
-        <h4 style="margin-top:15px;">Strategic Guidance & Mentorship</h4>
-        <p><b>Shri Rajeev Soni, ADEE/OP/BSP</b><br>His strategic insights and dedicated mentorship were pivotal in navigating project challenges and shaping the tool's successful development.</p>
         
         <h4 style="margin-top:15px;">Technical & Domain Expertise</h4>
         <p><b>Shri N Ravichandran, CLI/BSP</b><br>Offered invaluable expert guidance on locomotive operations and data interpretation, ensuring the tool's accuracy and relevance.</p>
+        
+        <h4 style="margin-top:15px;">Strategic Guidance & Mentorship</h4>
+        <p><b>Shri Rajeev Soni, ADEE/OP/BSP</b><br>His strategic insights and dedicated mentorship were pivotal in navigating project challenges and shaping the tool's successful development.</p>
 
         <h4 style="margin-top:15px;">Lead Developer & Architect</h4>
         <p><b>Shri Mohammad Rustam Khan, Sr. ALP/BSP</b><br>Masterminded the core architecture, coding, and web design, transforming complex requirements into a functional and user-friendly application.</p>
@@ -1548,6 +1565,4 @@ if (['Laxven', 'Telpro', 'RTIS'].includes(spmType) && !['xlsx', 'xls'].includes(
     <div id="toast-container"></div>
 </body>
 
-
 </html>
-
