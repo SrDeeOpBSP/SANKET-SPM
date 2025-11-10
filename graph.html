@@ -11,8 +11,8 @@
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);
         margin: 0;
-        padding: 30px; /* Original padding */
-        min-height: 100vh; /* 'height' se 'min-height' kiya */
+        padding: 30px; 
+        min-height: 100vh; 
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -33,14 +33,14 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        align-items: flex-start; /* Taki filter alag-alag height le sakein */
-        gap: 25px;
+        align-items: flex-start; 
+        gap: 20px; /* Thoda kam gap */
         margin-bottom: 30px;
         padding: 25px;
         background: #ffffff;
         border-radius: 12px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-        max-width: 1200px;
+        max-width: 1400px; /* Thoda bada */
         width: 100%;
         box-sizing: border-box;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -55,8 +55,8 @@
     .filter-group-excel {
         display: flex;
         flex-direction: column;
-        min-width: 250px;
-        flex: 1; /* Taki space le sake */
+        min-width: 220px; /* Thoda chota */
+        flex: 1; 
         background: #f9fafb;
         padding: 15px;
         border-radius: 8px;
@@ -94,31 +94,17 @@
         border: 1px solid #e5e7eb;
         border-radius: 6px;
         padding: 12px;
-        max-height: 180px;  /* YEH LINE BOX KO CHOTA KARTI HAI */
-        overflow-y: auto;   /* YEH LINE SCROLLBAR LAATI HAI */
+        max-height: 180px;  
+        overflow-y: auto;   
         background: #ffffff;
         scrollbar-width: thin;
         scrollbar-color: #93c5fd #e5e7eb;
     }
 
-    .checkbox-list::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .checkbox-list::-webkit-scrollbar-track {
-        background: #e5e7eb;
-        border-radius: 3px;
-    }
-
-    .checkbox-list::-webkit-scrollbar-thumb {
-        background: #93c5fd;
-        border-radius: 3px;
-    }
-
-    .checkbox-list div {
-        display: flex;
-        align-items: center;
-    }
+    .checkbox-list::-webkit-scrollbar { width: 6px; }
+    .checkbox-list::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 3px; }
+    .checkbox-list::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 3px; }
+    .checkbox-list div { display: flex; align-items: center; }
 
     .checkbox-list label {
         display: flex;
@@ -134,12 +120,16 @@
     .checkbox-list label:hover { color: #1e40af; }
     .checkbox-list input { margin-right: 10px; accent-color: #3b82f6; }
 
-    /* --- Rake Filter Styling --- */
+    /* --- Rake/Date/Recent Filter Styling --- */
     .filter-group {
         display: flex;
         flex-direction: column;
-        min-width: 200px;
-        flex: 1; /* Taki space le sake */
+        min-width: 180px; /* Thoda chota */
+        flex: 1; 
+        background: #f9fafb;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     .filter-group label {
@@ -155,8 +145,8 @@
         gap: 10px;
         padding: 15px;
         border-radius: 6px;
-        background: #f9fafb; /* Consistent background */
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05); /* Consistent shadow */
+        background: #fff; 
+        border: 1px solid #e5e7eb; 
     }
 
     .checkbox-group div { display: flex; align-items: center; }
@@ -166,23 +156,27 @@
         color: #374151;
         cursor: pointer;
         transition: color 0.3s ease;
-        margin-bottom: 0; /* Override */
+        margin-bottom: 0; 
     }
     .checkbox-group label:hover { color: #1e40af; }
 
-    /* --- Recent Filter Select --- */
-    .filter-group #recent-filter {
+    /* --- Recent Filter Select & Date Input Styling --- */
+    .filter-group #recent-filter,
+    .filter-group input[type="date"] {
         padding: 10px 12px;
         border: 1px solid #d1d5db;
         border-radius: 6px;
         font-size: 0.95rem;
         background: #fff;
         transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        background: #f9fafb; /* Consistent background */
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05); /* Consistent shadow */
+        font-family: inherit; 
+        color: #374151; 
+        box-sizing: border-box; /* Date input width ko theek karne ke liye */
+        width: 100%; /* Take full width of parent */
     }
 
-    .filter-group #recent-filter:focus {
+    .filter-group #recent-filter:focus,
+    .filter-group input[type="date"]:focus {
         outline: none;
         border-color: #3b82f6;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
@@ -191,8 +185,8 @@
     /* --- Chart Container --- */
     #chart-container {
         width: 100%;
-        max-width: 1200px;
-        height: 650px; /* Original height */
+        max-width: 1400px; /* Max-width se match karega */
+        height: 650px; 
         background: #ffffff;
         border-radius: 12px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
@@ -217,6 +211,15 @@
     }
 
     /* --- Buttons --- */
+    .button-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        align-self: center; /* Vertically align */
+        margin-top: 15px; /* Adjust margin */
+        min-width: 250px;
+    }
+
     #generate-btn, #toggle-average-btn {
         background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
         color: white;
@@ -226,10 +229,11 @@
         cursor: pointer;
         font-size: 1.1rem;
         font-weight: 600;
-        margin-left: 10px;
         transition: background 0.3s ease, transform 0.2s ease;
-        align-self: center; /* Vertically align with other groups */
-        margin-top: 25px; /* Original margin */
+        width: 100%; 
+        box-sizing: border-box;
+        margin-left: 0; /* Override previous margin */
+        margin-top: 0; /* Override previous margin */
     }
 
     #generate-btn:hover, #toggle-average-btn:hover {
@@ -237,24 +241,7 @@
         transform: scale(1.05);
     }
 
-    /* This style was in your original code, but #recent-filter is now inside .filter-group */
-    /* I've kept the new styling from above and commented this out to avoid conflict */
-    /*
-    #recent-filter {
-        padding: 10px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 0.95rem;
-        background: #fff;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    }
-    #recent-filter:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-    }
-    */
-</style>
+    </style>
 </head>
 <body>
 
@@ -263,6 +250,14 @@
 
     <div class="controls" id="filters-panel" style="display: none;">
         
+        <div class="filter-group">
+            <label for="from-date">From Date:</label>
+            <input type="date" id="from-date">
+        </div>
+        <div class="filter-group">
+            <label for="to-date">To Date:</label>
+            <input type="date" id="to-date">
+        </div>
         <div class="filter-group-excel">
             <label for="lp-search">Select LP ID (Multiple):</label>
             <input type="text" id="lp-search" class="filter-search" onkeyup="filterCheckboxes('lp-search', 'lp-filter-list')" placeholder="Search LP...">
@@ -279,7 +274,7 @@
 
         <div class="filter-group">
             <label>Select Rake Type (Multiple):</label>
-            <div class="checkbox-group" id="rake-filter" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <div class="checkbox-group" id="rake-filter">
                 <div><input type="checkbox" id="rake-all" value="ALL" checked><label for="rake-all">ALL</label></div>
                 <div><input type="checkbox" id="rake-goods-loaded" value="GOODS LOADED" checked><label for="rake-goods-loaded">GOODS LOADED</label></div>
                 <div><input type="checkbox" id="rake-goods-empty" value="GOODS EMPTY" checked><label for="rake-goods-empty">GOODS EMPTY</label></div>
@@ -298,24 +293,28 @@
             </select>
         </div>
         
-        <button id="generate-btn">Generate Graph</button>
-        <button id="toggle-average-btn">Show Only Average Profile</button>
+        <div class="button-container">
+            <button id="generate-btn">Generate Graph</button>
+            <button id="toggle-average-btn">Show Only Average Profile</button>
+        </div>
     </div>
 
     <div id="chart-container"></div>
 
     <script>
         // --- APNI DETAILS YAHAN DAALEIN ---
-        const API_KEY = 'AIzaSyAw23pJz0K9fZb2rRRAe2C2cJDilRc0Kac'; 
+        const API_KEY = 'AIzaSyAw23pJz0K9fZb2rRRAe2C2cJDilRc0Kac'; // <-- YAHAN APNA API KEY DAALEIN
         const SHEET_ID = '1qYmIAKzt4rAVP0BPTTipzdOgIrwus6P-oGNf5HVekJM';
-        const RANGE = 'Sheet1!A:AX'; // उदा: 'Sheet1!A:AX'
+        const RANGE = 'Sheet1!A:AX'; // Pura range A se AX tak
         // ----------------------------------------
 
         // --- SAHI COLUMN INDEX MAPPING (A=0, B=1...) ---
         const COLS = {
+            TIMESTAMP: 0,     // Column A (NAYA)
             LP_ID: 5,         // Column F
-            STOP_LOCATION: 23, // Column X
+            STOP_LOCATION: 23,// Column X
             KM: 26,           // Column AA
+            SPEED_1000: 27,   // Column AB (NAYA)
             SPEED_800: 28,    // Column AC
             SPEED_500: 29,    // Column AD
             SPEED_100: 30,    // Column AE
@@ -332,8 +331,35 @@
         const loadingDiv = document.getElementById('loading');
         const chartDiv = document.getElementById('chart-container');
         const filtersPanel = document.getElementById('filters-panel');
-        let chartBaseOption; // Global variable Chart ki base settings ke liye
-        let showOnlyAverage = false; // Track whether to show only average profile
+        let chartBaseOption; 
+        let showOnlyAverage = false; 
+
+        // --- NAYA HELPER: Date ko parse karne ke liye (M/D/YYYY...) ---
+        function parseDate(timestampStr) {
+            if (!timestampStr) return null;
+            const datePart = timestampStr.split(' ')[0]; // Sirf '11/4/2025' wala hissa lo
+            const parts = datePart.split('/'); // [11, 4, 2025]
+            if (parts.length === 3) {
+                // Date format ko M/D/YYYY maana ja raha hai
+                const month = parseInt(parts[0], 10) - 1; // JS months 0-indexed hote hain (Jan=0)
+                const day = parseInt(parts[1], 10);
+                const year = parseInt(parts[2], 10);
+                if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    return new Date(year, month, day); // Time ko ignore karke date object banayega
+                }
+            }
+            return null;
+        }
+
+        // --- NAYA HELPER: Date ko 'YYYY-MM-DD' format mein badalne ke liye ---
+        function formatDateToInput(date) {
+            if (!date) return '';
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Month 1-indexed chahiye
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
 
         // --- 1. JAB PAGE LOAD HOGA ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -347,7 +373,6 @@
         function initChart() {
             myChart = echarts.init(chartDiv);
             
-            // Base settings ko global variable (chartBaseOption) mein store karo
             chartBaseOption = {
                 tooltip: {
                     trigger: 'axis',
@@ -371,7 +396,6 @@
                         magicType: { type: ['line', 'bar'] },
                         restore: {},
                         saveAsImage: {},
-                        // Naya Legend Toggle Button
                         legendToggle: {
                             show: true,
                             title: 'Toggle Legend',
@@ -389,11 +413,11 @@
                     }
                 },
                 grid: { left: '3%', right: '4%', bottom: '3%', top: '12%', containLabel: true },
-                xAxis: { type: 'value', name: 'Distance to Stop (m)', min: 0, max: 800, inverse: true, axisLabel: { formatter: '{value} m' }, splitLine: { lineStyle: { type: 'dashed', color: '#eee' } } },
+                // NAYA: X-Axis 1000m se shuru
+                xAxis: { type: 'value', name: 'Distance to Stop (m)', min: 0, max: 1000, inverse: true, axisLabel: { formatter: '{value} m' }, splitLine: { lineStyle: { type: 'dashed', color: '#eee' } } },
                 yAxis: { type: 'value', name: 'Speed (Kmph)', min: 0, max: 120, axisLabel: { formatter: '{value} Kmph' }, splitLine: { lineStyle: { type: 'dashed', color: '#eee' } } },
                 
                 title: { text: 'Stop Approach Speed Analysis' },
-                // Legend default mein hide rahega
                 legend: { show: false, data: [], type: 'scroll', top: 30, padding: 5 },
                 series: []
             };
@@ -401,14 +425,14 @@
             myChart.setOption(chartBaseOption);
         }
 
-        // --- TOGGLE AVERAGE PROFILE FUNCTION ---
+        // --- 3. TOGGLE AVERAGE PROFILE FUNCTION ---
         function toggleAverageProfile() {
             showOnlyAverage = !showOnlyAverage;
             document.getElementById('toggle-average-btn').textContent = showOnlyAverage ? 'Show All Profiles' : 'Show Only Average Profile';
             updateChart();
         }
 
-        // --- 3. GOOGLE SHEETS API SE DATA LOAD KARNA ---
+        // --- 4. GOOGLE SHEETS API SE DATA LOAD KARNA ---
         async function loadAndProcessData() {
             try {
                 await new Promise((resolve) => gapi.load('client', resolve));
@@ -423,8 +447,8 @@
                 const rawData = response.result.values;
                 if (!rawData || rawData.length === 0) { throw new Error("No data found in sheet."); }
                 
-                preprocessData(rawData);
-                populateFilters(); 
+                const { minDate, maxDate } = preprocessData(rawData); // Min/Max date receive karo
+                populateFilters(minDate, maxDate); // Filters ko min/max date pass karo
                 setupAllFilterLogic(); 
 
                 loadingDiv.style.display = 'none'; 
@@ -441,43 +465,73 @@
             }
         }
 
-        // --- 4. DATA PRE-PROCESSING ---
+        // --- 5. DATA PRE-PROCESSING (Updated) ---
         function preprocessData(rawData) {
             processedData = [];
             lpSet.clear();
             locationSet.clear();
+            
+            // === NAYA LOGIC: Timestamp ko propagate karne ke liye ===
+            let currentTimestamp = null; 
             let currentLpId = null;
             let currentRakeType = null;
+            
+            let minDate = null;
+            let maxDate = null;
 
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (!row || row.length < 30) continue; 
                 
+                // --- NAYA LOGIC START ---
+                // 1. Timestamp Check karo
+                const timestampStr = (row[COLS.TIMESTAMP] || "").trim();
+                if (timestampStr !== "") { 
+                    currentTimestamp = parseDate(timestampStr); 
+                }
+                // --- NAYA LOGIC END ---
+
+                // 2. LP ID Check karo (Pehle jaisa)
                 const lpId = (row[COLS.LP_ID] || "").trim();
                 if (lpId !== "") { currentLpId = lpId; }
                 
+                // 3. Rake Type Check karo (Pehle jaisa)
                 const rakeType = (row[COLS.RAKE_TYPE] || "").trim().toUpperCase();
                 if (rakeType !== "") { currentRakeType = rakeType; }
 
+                // 4. Location Check karo
                 const stopLocation = (row[COLS.STOP_LOCATION] || "").trim();
-                if (stopLocation === "" || !isNaN(stopLocation)) { continue; }
+                
+                // 5. VALIDATION: Agar location khali hai, ya number hai, YA ABHI TAK KOI DATE NAHI MILI HAI, toh skip karo
+                if (stopLocation === "" || !isNaN(stopLocation) || !currentTimestamp) { 
+                    continue; 
+                }
+
+                // Min/Max Date update karo (currentTimestamp valid hai, upar check ho gaya)
+                if (!minDate || currentTimestamp < minDate) minDate = currentTimestamp;
+                if (!maxDate || currentTimestamp > maxDate) maxDate = currentTimestamp;
 
                 if (currentLpId) lpSet.add(currentLpId);
                 locationSet.add(stopLocation);
 
+                // NAYA: 1000m speed add karo
+                let s1000 = parseFloat(row[COLS.SPEED_1000]);
                 let s800 = parseFloat(row[COLS.SPEED_800]);
                 let s500 = parseFloat(row[COLS.SPEED_500]);
                 let s100 = parseFloat(row[COLS.SPEED_100]);
                 let s50 = parseFloat(row[COLS.SPEED_50]);
 
+                s1000 = isNaN(s1000) ? null : s1000;
                 s800 = isNaN(s800) ? null : s800;
                 s500 = isNaN(s500) ? null : s500;
                 s100 = isNaN(s100) ? null : s100;
                 s50 = isNaN(s50) ? null : s50;
                 
-                const graphData = [[800, s800], [500, s500], [100, s100], [50, s50], [0, 0]];
+                // NAYA: graphData 1000m se shuru hoga
+                const graphData = [[1000, s1000], [800, s800], [500, s500], [100, s100], [50, s50], [0, 0]];
 
                 processedData.push({
+                    date: currentTimestamp, // NAYA: Propagated date
                     lpId: currentLpId,
                     location: stopLocation,
                     rakeType: currentRakeType, 
@@ -485,10 +539,12 @@
                     graphData: graphData
                 });
             }
+            
+            return { minDate, maxDate };
         }
 
-        // --- 5. FILTERS KO UNIQUE VALUES SE BHARNA ---
-        function populateFilters() {
+        // --- 6. FILTERS KO UNIQUE VALUES SE BHARNA (Updated) ---
+        function populateFilters(minDate, maxDate) { // NAYA: minDate, maxDate parameters
             const lpList = document.getElementById('lp-filter-list');
             const locationList = document.getElementById('location-filter-list');
             
@@ -505,17 +561,24 @@
                 locHtml += `<div><label><input type="checkbox" class="location-item" value="${loc}" checked> ${loc}</label></div>`;
             });
             locationList.innerHTML = locHtml;
+
+            // NAYA: Date inputs ko set karna
+            if (minDate) {
+                document.getElementById('from-date').value = formatDateToInput(minDate);
+            }
+            if (maxDate) {
+                document.getElementById('to-date').value = formatDateToInput(maxDate);
+            }
         }
 
-        // --- 6. NAYA FUNCTION: SEARCH BOX KE LIYE ---
+        // --- 7. NAYA FUNCTION: SEARCH BOX KE LIYE ---
         function filterCheckboxes(inputId, listId) {
             let input = document.getElementById(inputId);
             let filter = input.value.toUpperCase();
             let list = document.getElementById(listId);
             let items = list.getElementsByTagName('div');
 
-            // i=1 se start karo taaki "ALL" checkbox hide na ho
-            for (let i = 1; i < items.length; i++) {
+            for (let i = 1; i < items.length; i++) { // i=1 se start karo taaki "ALL" hide na ho
                 let label = items[i].getElementsByTagName('label')[0];
                 if (label) {
                     let txtValue = label.textContent || label.innerText;
@@ -528,9 +591,8 @@
             }
         }
 
-        // --- 7. NAYA FUNCTION: SABHI "ALL" CHECKBOX LOGIC KE LIYE ---
+        // --- 8. NAYA FUNCTION: SABHI "ALL" CHECKBOX LOGIC KE LIYE ---
         function setupAllFilterLogic() {
-            // Yeh function "ALL" aur "item" checkboxes ke logic ko handle karega
             function setupCheckboxLogic(allCheckboxId, itemClassName) {
                 const allCb = document.getElementById(allCheckboxId);
                 const itemCbs = document.querySelectorAll(`.${itemClassName}`);
@@ -552,21 +614,21 @@
                 });
             }
 
-            // Teeno filters par logic apply karo
             setupCheckboxLogic('lp-all', 'lp-item');
             setupCheckboxLogic('location-all', 'location-item');
-            setupCheckboxLogic('rake-all', 'rake-item'); // Iske liye Rake HTML ko class deni hogi
+            setupCheckboxLogic('rake-all', 'rake-item');
             
-            // Rake HTML ko update karo taaki class match ho
             document.querySelectorAll('#rake-filter input[type="checkbox"]:not(#rake-all)')
                     .forEach(cb => cb.classList.add('rake-item'));
         }
 
-        // --- 8. AVERAGE LINE CALCULATE KARNA ---
+        // --- 9. AVERAGE LINE CALCULATE KARNA (Updated) ---
         function calculateAverageSeries(filteredStops) {
             if (filteredStops.length === 0) return null;
-            const sums = { 800: 0, 500: 0, 100: 0, 50: 0, 0: 0 };
-            const counts = { 800: 0, 500: 0, 100: 0, 50: 0, 0: 0 };
+            
+            // NAYA: 1000m add karo
+            const sums = { 1000: 0, 800: 0, 500: 0, 100: 0, 50: 0, 0: 0 };
+            const counts = { 1000: 0, 800: 0, 500: 0, 100: 0, 50: 0, 0: 0 };
             
             for (const stop of filteredStops) {
                 for (const point of stop.graphData) {
@@ -579,7 +641,9 @@
                 }
             }
             
+            // NAYA: avgData 1000m se shuru hoga
             const avgData = [
+                [1000, counts[1000] > 0 ? sums[1000] / counts[1000] : null],
                 [800, counts[800] > 0 ? sums[800] / counts[800] : null],
                 [500, counts[500] > 0 ? sums[500] / counts[500] : null],
                 [100, counts[100] > 0 ? sums[100] / counts[100] : null],
@@ -596,10 +660,9 @@
             };
         }
 
-        // --- 9. CHART UPDATE KARNA ---
+        // --- 10. CHART UPDATE KARNA (Updated) ---
         function updateChart() {
             
-            // HELPER FUNCTION: Checked values nikalne ke liye
             function getCheckedValues(allCheckboxId, itemClassName) {
                 if (document.getElementById(allCheckboxId).checked) {
                     return ['ALL']; 
@@ -617,12 +680,28 @@
             const selectedRakes = getCheckedValues('rake-all', 'rake-item');
             const allRakesChecked = document.getElementById('rake-all').checked;
 
+            // NAYA: Date values lena aur parse karna
+            const fromDateStr = document.getElementById('from-date').value; // 'YYYY-MM-DD'
+            const toDateStr = document.getElementById('to-date').value;
+
+            let fromDate = null;
+            if (fromDateStr) {
+                const parts = fromDateStr.split('-'); // [YYYY, MM, DD]
+                fromDate = new Date(parts[0], parts[1] - 1, parts[2]); // Y, M-1, D
+            }
+            let toDate = null;
+            if (toDateStr) {
+                const parts = toDateStr.split('-');
+                toDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                // To date ko din ke end tak set karo (taaki same day include ho)
+                toDate.setHours(23, 59, 59, 999); 
+            }
+
             // 2. Data ko filter karna
             const filteredData = processedData.filter(stop => {
                 const lpMatch = selectedLps.includes('ALL') || selectedLps.includes(stop.lpId);
                 const locationMatch = selectedLocations.includes('ALL') || selectedLocations.includes(stop.location);
                 
-                // Rake match logic 
                 let rakeMatch = false;
                 if (allRakesChecked) {
                     rakeMatch = true; 
@@ -630,7 +709,10 @@
                     rakeMatch = selectedRakes.includes(stop.rakeType);
                 }
                 
-                return lpMatch && locationMatch && rakeMatch;
+                // NAYA: Date match logic
+                const dateMatch = (!fromDate || stop.date >= fromDate) && (!toDate || stop.date <= toDate);
+                
+                return lpMatch && locationMatch && rakeMatch && dateMatch; // NAYA: dateMatch add kiya
             });
 
             // Apply recent filter
@@ -682,6 +764,7 @@
                 });
                 finalSeries.push(...seriesData);
             }
+            
             // 7. Chart ko naye data se update karo
             myChart.setOption({
                 ...chartBaseOption,
@@ -701,6 +784,4 @@
 
     </script>
 </body>
-
 </html>
-
