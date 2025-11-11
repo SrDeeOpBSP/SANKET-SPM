@@ -94,8 +94,8 @@
         border: 1px solid #e5e7eb;
         border-radius: 6px;
         padding: 12px;
-        max-height: 180px;  
-        overflow-y: auto;   
+        max-height: 180px;      
+        overflow-y: auto;       
         background: #ffffff;
         scrollbar-width: thin;
         scrollbar-color: #93c5fd #e5e7eb;
@@ -310,16 +310,19 @@
 
         // --- SAHI COLUMN INDEX MAPPING (A=0, B=1...) ---
         const COLS = {
-            TIMESTAMP: 0,     // Column A (NAYA)
-            LP_ID: 5,         // Column F
-            STOP_LOCATION: 23,// Column X
-            KM: 26,           // Column AA
-            SPEED_1000: 27,   // Column AB (NAYA)
-            SPEED_800: 28,    // Column AC
-            SPEED_500: 29,    // Column AD
-            SPEED_100: 30,    // Column AE
-            SPEED_50: 31,     // Column AF
-            RAKE_TYPE: 49     // Column AX
+            TIMESTAMP: 0,       // Column A (For Filtering)
+            DATE_OF_JOURNEY: 1, // Column B (NAYA - For Tooltip)
+            TRAIN_NO: 3,        // Column D (NAYA - For Tooltip)
+            LP_ID: 5,           // Column F
+            NAME: 6,            // Column G (NAYA - For Tooltip)
+            STOP_LOCATION: 23,  // Column X
+            KM: 26,             // Column AA
+            SPEED_1000: 27,     // Column AB (NAYA)
+            SPEED_800: 28,      // Column AC
+            SPEED_500: 29,      // Column AD
+            SPEED_100: 30,      // Column AE
+            SPEED_50: 31,       // Column AF
+            RAKE_TYPE: 49        // Column AX
         };
 
         const LINE_LIMIT = 50; 
@@ -335,6 +338,7 @@
         let showOnlyAverage = false; 
 
         // --- NAYA HELPER: Date ko parse karne ke liye (M/D/YYYY...) ---
+        // YEH FUNCTION SIRF COLUMN A (TIMESTAMP) KE LIYE ISTEMAL HOGA
         function parseDate(timestampStr) {
             if (!timestampStr) return null;
             const datePart = timestampStr.split(' ')[0]; // Sirf '11/4/2025' wala hissa lo
@@ -471,43 +475,63 @@
             lpSet.clear();
             locationSet.clear();
             
-            // === NAYA LOGIC: Timestamp ko propagate karne ke liye ===
-            let currentTimestamp = null; 
+            // === NAYA LOGIC: Propagation variables ===
+            let currentTimestamp = null;        // Col A (Date Object for filtering)
+            let currentDateOfJourneyStr = null; // Col B (String for tooltip)
+            let currentTrainNo = null;          // Col D (String for tooltip)
             let currentLpId = null;
+            let currentName = null;             // NAYA - Col G
             let currentRakeType = null;
             
-            let minDate = null;
-            let maxDate = null;
+            let minDate = null; // Col A se
+            let maxDate = null; // Col A se
 
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (!row || row.length < 30) continue; 
                 
                 // --- NAYA LOGIC START ---
-                // 1. Timestamp Check karo
+                // 1. Timestamp (Col A) - Date object for filtering
                 const timestampStr = (row[COLS.TIMESTAMP] || "").trim();
                 if (timestampStr !== "") { 
                     currentTimestamp = parseDate(timestampStr); 
                 }
+
+                // 2. Date of Journey (Col B) - String for tooltip
+                const dateOfJourneyFullStr = (row[COLS.DATE_OF_JOURNEY] || "").trim();
+                if (dateOfJourneyFullStr !== "") {
+                    currentDateOfJourneyStr = dateOfJourneyFullStr.split(' ')[0]; // Sirf '19/7/2025' wala part
+                }
+                
+                // 3. Train No (Col D) - String for tooltip
+                const trainNoStr = (row[COLS.TRAIN_NO] || "").trim();
+                if (trainNoStr !== "") {
+                    currentTrainNo = trainNoStr;
+                }
                 // --- NAYA LOGIC END ---
 
-                // 2. LP ID Check karo (Pehle jaisa)
+                // 4. LP ID Check karo (Pehle jaisa)
                 const lpId = (row[COLS.LP_ID] || "").trim();
                 if (lpId !== "") { currentLpId = lpId; }
+
+                // NAYA: 4b. Name Check karo (Col G)
+                const nameStr = (row[COLS.NAME] || "").trim();
+                if (nameStr !== "") { currentName = nameStr; }
                 
-                // 3. Rake Type Check karo (Pehle jaisa)
+                // 5. Rake Type Check karo (Pehle jaisa)
                 const rakeType = (row[COLS.RAKE_TYPE] || "").trim().toUpperCase();
                 if (rakeType !== "") { currentRakeType = rakeType; }
 
-                // 4. Location Check karo
+                // 6. Location Check karo
                 const stopLocation = (row[COLS.STOP_LOCATION] || "").trim();
                 
-                // 5. VALIDATION: Agar location khali hai, ya number hai, YA ABHI TAK KOI DATE NAHI MILI HAI, toh skip karo
+                // 7. VALIDATION: (Col A ke timestamp par adhaarit)
+                // Agar location khali hai, ya number hai, YA ABHI TAK KOI FILTER-WALI-DATE NAHI MILI HAI, toh skip karo
                 if (stopLocation === "" || !isNaN(stopLocation) || !currentTimestamp) { 
                     continue; 
                 }
 
-                // Min/Max Date update karo (currentTimestamp valid hai, upar check ho gaya)
+                // Min/Max Date update karo (currentTimestamp (Col A) valid hai, upar check ho gaya)
                 if (!minDate || currentTimestamp < minDate) minDate = currentTimestamp;
                 if (!maxDate || currentTimestamp > maxDate) maxDate = currentTimestamp;
 
@@ -531,8 +555,11 @@
                 const graphData = [[1000, s1000], [800, s800], [500, s500], [100, s100], [50, s50], [0, 0]];
 
                 processedData.push({
-                    date: currentTimestamp, // NAYA: Propagated date
+                    date: currentTimestamp,       // Col A - for filtering
+                    dateStr: currentDateOfJourneyStr, // NAYA - Col B string for display
+                    trainNo: currentTrainNo,      // NAYA - Col D string for display
                     lpId: currentLpId,
+                    name: currentName,            // NAYA - Col G for display
                     location: stopLocation,
                     rakeType: currentRakeType, 
                     km: row[COLS.KM] || '',
@@ -544,7 +571,7 @@
         }
 
         // --- 6. FILTERS KO UNIQUE VALUES SE BHARNA (Updated) ---
-        function populateFilters(minDate, maxDate) { // NAYA: minDate, maxDate parameters
+        function populateFilters(minDate, maxDate) { // NAYA: minDate, maxDate parameters (Col A se)
             const lpList = document.getElementById('lp-filter-list');
             const locationList = document.getElementById('location-filter-list');
             
@@ -562,7 +589,7 @@
             });
             locationList.innerHTML = locHtml;
 
-            // NAYA: Date inputs ko set karna
+            // NAYA: Date inputs ko set karna (Col A ke data se)
             if (minDate) {
                 document.getElementById('from-date').value = formatDateToInput(minDate);
             }
@@ -680,7 +707,7 @@
             const selectedRakes = getCheckedValues('rake-all', 'rake-item');
             const allRakesChecked = document.getElementById('rake-all').checked;
 
-            // NAYA: Date values lena aur parse karna
+            // NAYA: Date values lena aur parse karna (Col A ke data ke liye)
             const fromDateStr = document.getElementById('from-date').value; // 'YYYY-MM-DD'
             const toDateStr = document.getElementById('to-date').value;
 
@@ -709,7 +736,7 @@
                     rakeMatch = selectedRakes.includes(stop.rakeType);
                 }
                 
-                // NAYA: Date match logic
+                // NAYA: Date match logic (Col A ke 'date' object par)
                 const dateMatch = (!fromDate || stop.date >= fromDate) && (!toDate || stop.date <= toDate);
                 
                 return lpMatch && locationMatch && rakeMatch && dateMatch; // NAYA: dateMatch add kiya
@@ -755,7 +782,8 @@
             } else {
                 const seriesData = displayData.map((stop, index) => {
                     return {
-                        name: `LP ${stop.lpId} @ ${stop.location} (KM ${stop.km})`,
+                        // === YAHAN BADLAAV KIYA GAYA HAI ===
+                        name: `LP ${stop.lpId || 'N/A'} (${stop.name || 'N/A'}) (Tr ${stop.trainNo || 'N/A'} on ${stop.dateStr || 'N/A'}) @ ${stop.location} (KM ${stop.km})`,
                         type: 'line', smooth: true, symbol: 'none', 
                         lineStyle: { width: 2, opacity: 0.7 },
                         data: stop.graphData,
