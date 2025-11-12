@@ -1,7 +1,6 @@
-
 const spmConfig = {
     type: 'RTIS',
-    // Column names from the RTIS XLSX file
+    // Column names from the RTIS XLSX file (Yeh ab "default" ya "old" format hai)
     columnNames: {
         time: 'Gps Time',
         distance: 'distFromPrevLatLng',
@@ -128,13 +127,46 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
                 if (jsonData.length === 0) throw new Error("The selected XLSX file is empty or invalid.");
 
+                // ===============================================
+                // === RTIS Format Detection (Aapke pichle request se) ===
+                // ===============================================
+                let effectiveColumnNames = {};
+                const firstRow = jsonData[0];
+
+                if (firstRow['Logging Time'] && firstRow['Speed'] && firstRow['distFromPrevLatLng']) {
+                    // Yeh NAYA format hai
+                    showToast('New RTIS format (Logging Time) detected.');
+                    effectiveColumnNames = {
+                        time: 'Logging Time',
+                        distance: 'distFromPrevLatLng',
+                        speed: 'Speed',
+                        event: 'Event' // Virtual column
+                    };
+                } else if (firstRow['Gps Time'] && firstRow['Speed'] && firstRow['distFromPrevLatLng']) {
+                    // Yeh PURANA format hai
+                    showToast('Old RTIS format (Gps Time) detected.');
+                    effectiveColumnNames = {
+                        time: 'Gps Time',
+                        distance: 'distFromPrevLatLng',
+                        speed: 'Speed',
+                        event: 'Event' // Virtual column
+                    };
+                } else {
+                    // Format nahi pehchana
+                    console.error('File headers:', Object.keys(firstRow));
+                    throw new Error('Invalid RTIS file format. Required columns (Time, Speed, Distance) not found.');
+                }
+                // === BADLAAV KHATAM ===
+                
+
                 // Process the extracted JSON data
                 let cumulativeDistanceMeters = 0;
                 const parsedData = jsonData.map(row => {
-                    const distanceIncrement = parseFloat(row[spmConfig.columnNames.distance]) || 0;
+                    // Yahan 'effectiveColumnNames' ka istemal karein
+                    const distanceIncrement = parseFloat(row[effectiveColumnNames.distance]) || 0;
                     cumulativeDistanceMeters += distanceIncrement;
 
-                    let timeValue = row[spmConfig.columnNames.time];
+                    let timeValue = row[effectiveColumnNames.time]; 
                     let parsedTime;
                     if (typeof timeValue === 'number') {
                         parsedTime = new Date(XLSX.SSF.format('yyyy-mm-dd HH:mm:ss', timeValue));
@@ -149,8 +181,8 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     return {
                         Time: parsedTime,
                         Distance: cumulativeDistanceMeters / 1000, // in KM
-                        Speed: parseFloat(row[spmConfig.columnNames.speed]) || 0,
-                        EventGn: (parseFloat(row[spmConfig.columnNames.speed]) === 0) ? spmConfig.eventCodes.zeroSpeed : ''
+                        Speed: parseFloat(row[effectiveColumnNames.speed]) || 0, 
+                        EventGn: (parseFloat(row[effectiveColumnNames.speed]) === 0) ? spmConfig.eventCodes.zeroSpeed : ''
                     };
                 }).filter(Boolean);
 
@@ -197,7 +229,10 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 const { wheelSlipDetails, wheelSkidDetails } = getWheelSlipAndSkidDetails(normalizedData, normalizedStations);
                 let stops = getStopDetails(normalizedData, spmConfig.eventCodes.zeroSpeed, section, fromDistance, normalizedStations, rakeType);
                 const { bftDetails, bptDetails } = getBrakeTestDetails(normalizedData, spmConfig.brakeTests[rakeType]);
+                
+                // Yahan 'analyzeCalls' function (jo ab Telpro se liya gaya hai) call ho raha hai
                 const crewCallData = [...analyzeCalls(lpCalls, lpDesg || 'LP', normalizedData), ...analyzeCalls(alpCalls, alpDesg || 'ALP', normalizedData)];
+                
                 const stationStops = getStationArrivalDeparture(normalizedStations, stops, filteredData, normalizedData, fromSection, toSection);
                 const speedRangeSummary = calculateSpeedRangeSummary(normalizedData, rakeType, maxPermissibleSpeed);
                 const sectionSpeedSummary = calculateSectionSpeedSummary(normalizedData, normalizedStations, fromSection, toSection);
@@ -619,16 +654,51 @@ function getBrakeTestDetails(data, brakeConf) {
 
     return { bftDetails, bptDetails };
 }
+
+// =================================================================
+// === SAHI CREW CALL ANALYSIS FUNCTION (TELPRO.JS SE LIYA GAYA) ===
+// =================================================================
 function analyzeCalls(calls, designation, spmData) {
     return calls.map((call, index) => {
-        let runDuration = 0, stopDuration = 0, maxSpeed = 0;
-        spmData.forEach((row, i) => {
-            if (row.Time >= call.startDateTime && row.Time <= call.endDateTime) {
-                const timeDiff = (spmData[i + 1]?.Time - row.Time) / 1000 || 1;
-                if (row.Speed > 1) { runDuration += timeDiff; maxSpeed = Math.max(maxSpeed, row.Speed); } else { stopDuration += timeDiff; }
+        let runDuration = 0;
+        let stopDuration = 0;
+        let maxSpeed = 0;
+
+        // Step 1: Sirf call ke samay ka SPM data filter karein
+        const callSpmData = spmData.filter(row => 
+            row.Time >= call.startDateTime && row.Time <= call.endDateTime
+        );
+
+        // Step 2: Sirf filter kiye gaye data par गणना (iterate) karein
+        callSpmData.forEach((row, i) => {
+            // Aakhri data point ko chhod dein kyonki iske baad ka time nahi pata
+            if (i === callSpmData.length - 1) return; 
+
+            // Agle data point se time ka antar nikaalein
+            const nextRow = callSpmData[i + 1];
+            const timeDiff = (nextRow.Time - row.Time) / 1000; // Time diff in seconds
+
+            // Agar data mein bada gap hai (jaise 10 sec se zyada) to use chhod dein
+            if (timeDiff < 0 || timeDiff > 10) return; 
+
+            // Ab speed ke hisaab se run ya stop duration jodein
+            if (row.Speed > 1) { // 1 Kmph se zyada matlab "Run"
+                runDuration += timeDiff;
+                maxSpeed = Math.max(maxSpeed, row.Speed);
+            } else { // 1 Kmph ya usse kam matlab "Stop"
+                stopDuration += timeDiff;
             }
         });
-        return { designation: `${designation} (Call ${index + 1})`, totalDuration: Math.round(call.duration), runDuration: Math.round(runDuration), stopDuration: Math.round(stopDuration), maxSpeed: maxSpeed.toFixed(2), toNumbers: call['To Mobile Number'] || 'N/A' };
+
+        // Step 3: Result return karein
+        return {
+            designation: `${designation} (Call ${index + 1})`,
+            totalDuration: Math.round(call.duration),
+            runDuration: Math.round(runDuration),
+            stopDuration: Math.round(stopDuration),
+            maxSpeed: maxSpeed.toFixed(2),
+            toNumbers: call['To Mobile Number'] || 'N/A'
+        };
     });
 }
 
@@ -753,7 +823,7 @@ function getStopChartData(stops, data) {
             let closestRow = data.slice(0, stop.index).reverse().find(row => stop.kilometer - row.Distance >= targetDistance);
             return closestRow ? closestRow.Speed : 0;
         });
-        const colors = ['#FF0000', '#0000FF', '#008000', '#FFA500', '#800080', '#00FFFF', '#FF00FF', '#808000', '#000080', '#800000'];
+        const colors = ['#FF0000', '#0000FF', '#008000', '#FFA500', '#800080', '#00FFFF', '#FF00FF', '#808080', '#000080', '#800000'];
         return {
             label: stop.stopLocation.substring(0, 20),
             data: speeds,
