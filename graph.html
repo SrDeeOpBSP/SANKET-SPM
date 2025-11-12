@@ -289,6 +289,8 @@
                 <option value="all" selected>All</option>
                 <option value="10">Last 10</option>
                 <option value="20">Last 20</option>
+                <option value="30">Last 30</option>
+                <option value="40">Last 40</option>
                 <option value="50">Last 50</option>
             </select>
         </div>
@@ -326,6 +328,13 @@
         };
 
         const LINE_LIMIT = 50; 
+        const COLOR_PALETTE = [
+            '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', 
+            '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9',
+            '#543005', '#8c510a', '#bf812d', '#dfc27d', '#f6e8c3', '#c7eae5', '#80cdc1', '#35978f', '#01665e', '#003c30',
+            '#8e0152', '#c51b7d', '#de77ae', '#f1b6da', '#fde0ef', '#e6f5d0', '#b8e186', '#7fbc41', '#4d9221', '#276419',
+            '#b2182b', '#d6604d', '#f4a582', '#fddbc7', '#f7f7f7', '#d1e5f0', '#92c5de', '#4393c3', '#2166ac', '#053061'
+        ];
 
         let myChart;
         let processedData = []; 
@@ -787,7 +796,8 @@
                         type: 'line', smooth: true, symbol: 'none', 
                         lineStyle: { width: 2, opacity: 0.7 },
                         data: stop.graphData,
-                        emphasis: { focus: 'series', lineStyle: { width: 4, opacity: 1 } }
+                        emphasis: { focus: 'series', lineStyle: { width: 4, opacity: 1 } },
+                        color: COLOR_PALETTE[index % COLOR_PALETTE.length]
                     };
                 });
                 finalSeries.push(...seriesData);
