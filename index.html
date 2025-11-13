@@ -942,7 +942,6 @@ input:checked + .slider:before {
             <option value="SUMANT KUMAR BAGHMAR">SUMANT KUMAR BAGHMAR</option>
             <option value="SUNIL KUMAR GUPTA">SUNIL KUMAR GUPTA</option>
             <option value="SURENDRA KUMAR PRETA DSL">SURENDRA KUMAR PRETA DSL</option>
-            <option value="SURESH KUMAR VERMA">SURESH KUMAR VERMA</option>                
             <option value="SURESH CHANDRA">SURESH CHANDRA</option>
             <option value="SURESH CHANDRA SDL">SURESH CHANDRA SDL</option>
             <option value="SURESH SINGH CHAUHAN">SURESH SINGH CHAUHAN</option>
@@ -977,7 +976,7 @@ input:checked + .slider:before {
                     </div>
                     <div class="form-group">
                         <label for="spmFile">Upload SPM File</label>
-                        <input type="file" id="spmFile" name="spmFile" accept=".xlsx,.xls,.txt,.pdf" required>
+                        <input type="file" id="spmFile" name="spmFile" accept=".xlsx,.xls,.csv,.txt,.pdf" required>
                     </div>
                 </div>
             </div>
@@ -1406,12 +1405,16 @@ input:checked + .slider:before {
                     const spmType = e.target.value;
                     const fileInput = document.getElementById('spmFile');
                     if (spmType === 'Medha') {
-                        fileInput.accept = '.txt';
-                    } else if (spmType === 'MR' || spmType === 'VEL') {
-                        fileInput.accept = '.pdf';
-                    } else {
-                        fileInput.accept = '.xlsx, .xls';
-                    }
+    fileInput.accept = '.txt';
+} else if (spmType === 'MR' || spmType === 'VEL') {
+    fileInput.accept = '.pdf';
+} else if (spmType === 'RTIS') {
+    // RTIS can be Excel or CSV
+    fileInput.accept = '.xlsx,.xls,.csv';
+} else {
+    // default: allow Excel and CSV as fallback
+    fileInput.accept = '.xlsx,.xls,.csv';
+}
                     if (spmType) {
                         const scriptFile = `${spmType}.js`;
                         loadScript(scriptFile, () => {
@@ -1489,9 +1492,13 @@ input:checked + .slider:before {
                     }
                     const fileExt = spmFile.name.split('.').pop().toLowerCase();
 
-// Naya aur saaf validation logic
-if (['Laxven', 'Telpro', 'RTIS'].includes(spmType) && !['xlsx', 'xls'].includes(fileExt)) {
+// Naya aur saaf validation logic (RTIS allows CSV)
+if (['Laxven', 'Telpro'].includes(spmType) && !['xlsx', 'xls'].includes(fileExt)) {
     alert(`Please upload an Excel file (.xlsx or .xls) for ${spmType} SPM.`);
+    document.getElementById('loadingOverlay').style.display = 'none';
+    return;
+} else if (spmType === 'RTIS' && !['xlsx', 'xls', 'csv'].includes(fileExt)) {
+    alert('Please upload an Excel (.xlsx/.xls) or CSV (.csv) file for RTIS SPM.');
     document.getElementById('loadingOverlay').style.display = 'none';
     return;
 } else if (spmType === 'Medha' && fileExt !== 'txt') {
@@ -1565,6 +1572,5 @@ if (['Laxven', 'Telpro', 'RTIS'].includes(spmType) && !['xlsx', 'xls'].includes(
     </script>
     <div id="toast-container"></div>
 </body>
-
 
 </html>

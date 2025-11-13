@@ -1,4 +1,4 @@
-// RTIS.js - Full updated with Medha BFT/BPT + improved crew-call analysis
+// RTIS.js - Full updated with Medha BFT/BPT + improved crew-call analysis + CSV support + speed rounding
 // Replace your existing RTIS.js with this file.
 
 const spmConfig = {
@@ -106,27 +106,27 @@ const parseAndProcessCugData = (file) => {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            transform: (value) => value.trim(),
+            transform: (value) => (typeof value === 'string' ? value.trim() : value),
             complete: (result) => {
-                if (result.errors.length) return reject(new Error('Failed to parse CUG.csv.'));
+                if (result.errors && result.errors.length) return reject(new Error('Failed to parse CUG.csv.'));
                 const processedData = result.data.map(call => {
-                    const startDateTimeStr = call['Start Date & Time']?.trim();
-                    const endDateTimeStr = call['End Date & Time']?.trim();
+                    const startDateTimeStr = (call['Start Date & Time'] || '').toString().trim();
+                    const endDateTimeStr = (call['End Date & Time'] || '').toString().trim();
                     const dateTimeRegex = /^(?:(\d{2})[-\/](\d{2})[-\/](\d{4})|(\d{4})[-\/](\d{2})[-\/](\d{2}))\s(\d{2}):(\d{2})(?::(\d{2}))?$/;
-                    const startMatch = startDateTimeStr?.match(dateTimeRegex);
-                    const endMatch = endDateTimeStr?.match(dateTimeRegex);
+                    const startMatch = startDateTimeStr.match(dateTimeRegex);
+                    const endMatch = endDateTimeStr.match(dateTimeRegex);
                     if (startMatch && endMatch) {
                         let startDateTime, endDateTime;
-                        const startSeconds = startMatch[9] || '00';
-                        const endSeconds = endMatch[9] || '00';
+                        const startSeconds = startMatch[7] || '00';
+                        const endSeconds = endMatch[7] || '00';
                         if (startMatch[1]) {
-                            startDateTime = new Date(`${startMatch[3]}-${startMatch[2]}-${startMatch[1]}T${startMatch[7]}:${startMatch[8]}:${startSeconds}`);
-                            endDateTime = new Date(`${endMatch[3]}-${endMatch[2]}-${endMatch[1]}T${endMatch[7]}:${endMatch[8]}:${endSeconds}`);
+                            startDateTime = new Date(`${startMatch[3]}-${startMatch[2]}-${startMatch[1]}T${startMatch[5]}:${startMatch[6]}:${startSeconds}`);
+                            endDateTime = new Date(`${endMatch[3]}-${endMatch[2]}-${endMatch[1]}T${endMatch[5]}:${endMatch[6]}:${endSeconds}`);
                         } else {
-                            startDateTime = new Date(`${startMatch[4]}-${startMatch[5]}-${startMatch[6]}T${startMatch[7]}:${startMatch[8]}:${startSeconds}`);
-                            endDateTime = new Date(`${endMatch[4]}-${endMatch[5]}-${endMatch[6]}T${endMatch[7]}:${endMatch[8]}:${endSeconds}`);
+                            startDateTime = new Date(`${startMatch[4]}-${startMatch[5]}-${startMatch[6]}T${startMatch[5]}:${startMatch[6]}:${startSeconds}`);
+                            endDateTime = new Date(`${endMatch[4]}-${endMatch[5]}-${endMatch[6]}T${endMatch[5]}:${endMatch[6]}:${endSeconds}`);
                         }
-                        return { ...call, startDateTime, endDateTime, duration: parseInt(call['Duration in Sec']) || 0, 'CUG MOBILE NO': call['CUG MOBILE NO']?.trim() };
+                        return { ...call, startDateTime, endDateTime, duration: parseInt(call['Duration in Sec']) || 0, 'CUG MOBILE NO': (call['CUG MOBILE NO'] || '').toString().trim() };
                     }
                     return null;
                 }).filter(Boolean);
@@ -232,17 +232,35 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
         const lpCalls = cugData.filter(call => call['CUG MOBILE NO'] === lpCugNumber && call.startDateTime >= fromDateTime && call.startDateTime <= toDateTime);
         const alpCalls = cugData.filter(call => call['CUG MOBILE NO'] === alpCugNumber && call.startDateTime >= fromDateTime && call.startDateTime <= toDateTime);
 
-        // Read XLSX with cellDates:true
+        if (!spmFile) throw new Error('Please select an SPM file (XLSX or CSV).');
+
+        // Determine extension
+        const fileExt = (spmFile.name.split('.').pop() || '').toLowerCase();
+
+        // Read file (CSV -> text, XLSX -> arraybuffer)
         const reader = new FileReader();
         reader.onload = async (event) => {
             try {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonDataRaw = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+                let jsonDataRaw = [];
+                if (fileExt === 'csv') {
+                    // CSV parsing via PapaParse
+                    const csvText = event.target.result;
+                    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true, dynamicTyping: false, transform: v => (typeof v === 'string' ? v.trim() : v) });
+                    if (parsed.errors && parsed.errors.length) {
+                        console.warn('CSV parse errors:', parsed.errors);
+                        // allow best-effort: use parsed.data if available
+                    }
+                    jsonDataRaw = parsed.data || [];
+                } else {
+                    // XLSX
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    jsonDataRaw = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+                }
 
-                if (jsonDataRaw.length === 0) throw new Error("The selected XLSX file is empty or invalid.");
+                if (!jsonDataRaw || jsonDataRaw.length === 0) throw new Error("The selected SPM file is empty or invalid.");
 
                 const headers = Object.keys(jsonDataRaw[0]);
 
@@ -293,7 +311,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                                 const v = jsonDataRaw[i][h];
                                 if (v === null || v === undefined || v === '') continue;
                                 total++;
-                                const n = parseFloat(v);
+                                const n = parseFloat(String(v).replace(',', '.'));
                                 if (!isNaN(n) && n >= 0 && n <= 300) validSpeedCount++;
                             }
                             if (total > 0 && (validSpeedCount / total) > 0.6) { candidate = h; break; }
@@ -316,36 +334,55 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
 
                 let cumulativeDistanceMeters = 0;
                 const parsedData = jsonDataRaw.map((row, idx) => {
-                    const incrRaw = row[distanceKey];
-                    const distanceIncrement = parseFloat(incrRaw) || 0;
+                    // distance increment (some CSV/XLSX files may have cumulative distances or increments; this code assumes "distFromPrev" increments)
+                    const incrRaw = distanceKey ? row[distanceKey] : null;
+                    const distanceIncrement = parseFloat((incrRaw === null || incrRaw === undefined) ? 0 : String(incrRaw).replace(',', '.')) || 0;
                     cumulativeDistanceMeters += distanceIncrement;
 
+                    // Time parsing (robust)
                     const timeValue = row[timeKey];
                     let parsedTime = parseExcelOrStringDate(timeValue);
                     if ((!parsedTime || isNaN(parsedTime.getTime())) && typeof timeValue === 'string' && /^\d+(\.\d+)?$/.test(timeValue.trim())) {
                         parsedTime = excelSerialToJSDate(Number(timeValue.trim()));
                     }
                     if (!parsedTime || isNaN(parsedTime.getTime())) {
+                        // try fallback: look for any column which looks like a date
+                        const dateCol = Object.keys(row).find(h => h.toLowerCase().includes('time') || h.toLowerCase().includes('date'));
+                        if (dateCol && row[dateCol]) parsedTime = parseExcelOrStringDate(row[dateCol]);
+                    }
+                    if (!parsedTime || isNaN(parsedTime.getTime())) {
                         console.warn(`Row ${idx} invalid time:`, timeValue);
                         return null;
                     }
 
-                    let speedVal = row[speedKey];
+                    // Speed parsing with rounding logic
+                    let speedVal = (speedKey ? row[speedKey] : null);
                     if (speedVal === null || speedVal === undefined || speedVal === '') {
+                        // try find another numeric column as fallback
                         const alt = Object.keys(row).find(h => {
                             const v = row[h];
-                            const n = parseFloat(v);
+                            if (v === null || v === undefined || v === '') return false;
+                            const n = parseFloat(String(v).replace(',', '.'));
                             return !isNaN(n) && n >= 0 && n <= 300;
                         });
                         speedVal = alt ? row[alt] : 0;
                     }
-                    const speed = parseFloat(speedVal) || 0;
+
+                    let speedNum = parseFloat(String(speedVal).replace(',', '.'));
+                    if (isNaN(speedNum)) speedNum = 0;
+
+                    // --- NEW: treat very small floats as zero and round to 0 decimals ---
+                    if (Math.abs(speedNum) < 0.5) {
+                        speedNum = 0;
+                    } else {
+                        speedNum = Math.round(speedNum);
+                    }
 
                     return {
                         Time: parsedTime,
-                        Distance: cumulativeDistanceMeters / 1000,
-                        Speed: speed,
-                        EventGn: (speed === 0) ? spmConfig.eventCodes.zeroSpeed : ''
+                        Distance: cumulativeDistanceMeters / 1000, // km
+                        Speed: speedNum,
+                        EventGn: (speedNum === 0) ? spmConfig.eventCodes.zeroSpeed : ''
                     };
                 }).filter(Boolean);
 
@@ -412,9 +449,9 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                                 if (reduction >= 5) {
                                     bftDetails = {
                                         time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                                        startSpeed: speed.toFixed(2),
-                                        endSpeed: res.speed.toFixed(2),
-                                        reduction: reduction.toFixed(2),
+                                        startSpeed: speed.toFixed(0),
+                                        endSpeed: res.speed.toFixed(0),
+                                        reduction: reduction.toFixed(0),
                                         timeTaken: res.timeDiff.toFixed(0),
                                         endTime: normalizedData[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
                                     };
@@ -431,13 +468,13 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                             const res = trackSpeedReductionMedha(normalizedData, i, brakeConf.bpt.maxDuration);
                             if (res && res.timeDiff > 1) {
                                 const reduction = speed - res.speed;
-                                const requiredReduction = Math.max(5, speed * 0.40); // Medha: >=40% OR >=5 kmph
+                                const requiredReduction = Math.max(5, Math.round(speed * 0.40)); // Medha: >=40% OR >=5 kmph
                                 if (reduction >= requiredReduction) {
                                     bptDetails = {
                                         time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                                        startSpeed: speed.toFixed(2),
-                                        endSpeed: res.speed.toFixed(2),
-                                        reduction: reduction.toFixed(2),
+                                        startSpeed: speed.toFixed(0),
+                                        endSpeed: res.speed.toFixed(0),
+                                        reduction: reduction.toFixed(0),
                                         timeTaken: res.timeDiff.toFixed(0),
                                         endTime: normalizedData[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
                                     };
@@ -486,7 +523,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                             totalDuration: Math.round(totalDuration),
                             runDuration: runDuration,
                             stopDuration: stopDuration,
-                            maxSpeed: maxSpeed > 0 ? maxSpeed.toFixed(2) : 'N/A',
+                            maxSpeed: maxSpeed > 0 ? Number(maxSpeed).toFixed(0) : 'N/A',
                             toNumbers: call['To Mobile Number'] || 'N/A'
                         };
                     });
@@ -596,10 +633,15 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
             }
         };
         reader.onerror = () => {
-            alert('Failed to read the XLSX file.');
+            alert('Failed to read the SPM file.');
             if (window.toggleLoadingOverlay) window.toggleLoadingOverlay(false);
         };
-        reader.readAsArrayBuffer(spmFile);
+
+        if (fileExt === 'csv') {
+            reader.readAsText(spmFile, 'UTF-8');
+        } else {
+            reader.readAsArrayBuffer(spmFile);
+        }
 
     } catch (error) {
         console.error('Error during submission:', error);
@@ -617,7 +659,7 @@ function getOverSpeedDetails(data, maxSpeed, stations) {
             let sectionName = stations.slice(0, -1).find((s, i) => row.Distance >= s.distance && row.Distance < stations[i + 1].distance);
             sectionName = sectionName ? `${sectionName.name}-${stations[stations.indexOf(sectionName) + 1].name}` : 'Unknown';
             if (!group || group.section !== sectionName || (index > 0 && (row.Time.getTime() - data[index-1].Time.getTime()) > 10000)) {
-                if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
+                if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(0)}-${group.maxSpeed.toFixed(0)}` });
                 group = { section: sectionName, startTime: row.Time, endTime: row.Time, minSpeed: row.Speed, maxSpeed: row.Speed };
             } else {
                 group.endTime = row.Time;
@@ -625,11 +667,11 @@ function getOverSpeedDetails(data, maxSpeed, stations) {
                 group.maxSpeed = Math.max(group.maxSpeed, row.Speed);
             }
         } else if (group) {
-            details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
+            details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(0)}-${group.maxSpeed.toFixed(0)}` });
             group = null;
         }
     });
-    if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
+    if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(0)}-${group.maxSpeed.toFixed(0)}` });
     return details;
 }
 
@@ -643,8 +685,8 @@ function getWheelSlipAndSkidDetails(data, stations) {
         const speedDiff = (row.Speed - prevRow.Speed) / timeDiffSec;
         let sectionName = stations.slice(0, -1).find((s, i) => row.Distance >= s.distance && row.Distance < stations[i + 1].distance);
         sectionName = sectionName ? `${sectionName.name}-${stations[stations.indexOf(sectionName) + 1].name}` : 'Unknown';
-        if (speedDiff >= 4) wheelSlipDetails.push({ section: sectionName, timeRange: `${prevRow.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${row.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${prevRow.Speed.toFixed(2)}-${row.Speed.toFixed(2)}` });
-        if (speedDiff <= -5) wheelSkidDetails.push({ section: sectionName, timeRange: `${prevRow.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${row.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${prevRow.Speed.toFixed(2)}-${row.Speed.toFixed(2)}` });
+        if (speedDiff >= 4) wheelSlipDetails.push({ section: sectionName, timeRange: `${prevRow.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${row.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${prevRow.Speed.toFixed(0)}-${row.Speed.toFixed(0)}` });
+        if (speedDiff <= -5) wheelSkidDetails.push({ section: sectionName, timeRange: `${prevRow.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${row.Time.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${prevRow.Speed.toFixed(0)}-${row.Speed.toFixed(0)}` });
     });
     return { wheelSlipDetails, wheelSkidDetails };
 }
@@ -675,7 +717,7 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
         let atStation = window.stationSignalData.find(row => row['SECTION'] === section && Math.abs((parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDist) - stop.kilometer) <= 400);
         if (atStation) stop.stopLocation = `${atStation['STATION']} ${atStation['SIGNAL NAME'] || ''}`.trim();
         else { let sec = stations.slice(0, -1).find((s, i) => stop.kilometer >= s.distance && stop.kilometer < stations[i+1].distance); stop.stopLocation = sec ? `${sec.name}-${stations[stations.indexOf(sec) + 1].name}` : 'Unknown'; }
-        const speedsBefore = [800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(2) || 'N/A');
+        const speedsBefore = [800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(0) || 'N/A');
         const [s8, s5, s1, s0] = speedsBefore.map(s => parseFloat(s) || Infinity);
         const smooth = rakeType === 'GOODS' ? (s8 <= 30 && s5 <= 25 && s1 <= 15 && s0 <= 10) : (s8 <= 60 && s5 <= 45 && s1 <= 30 && s0 <= 20);
         stop.brakingTechnique = smooth ? 'Smooth' : 'Late';
@@ -737,8 +779,8 @@ function calculateSectionSpeedSummary(data, stations, from, to) {
             const speeds = sectionData.map(d => d.Speed).filter(s => s > 0);
             let modeSpeed = 'N/A', maxSpeed = 'N/A', averageSpeed = 'N/A';
             if (speeds.length > 0) {
-                maxSpeed = Math.max(...speeds).toFixed(2);
-                averageSpeed = (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(2);
+                maxSpeed = Math.max(...speeds).toFixed(0);
+                averageSpeed = (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(0);
                 const freq = {}; let maxFreq = 0;
                 speeds.forEach(s => {
                     const speedInt = Math.floor(s);
@@ -752,8 +794,8 @@ function calculateSectionSpeedSummary(data, stations, from, to) {
     const overallSpeeds = data.map(d => d.Speed).filter(s => s > 0);
     let overallModeSpeed = 'N/A', overallMaxSpeed = 'N/A', overallAverageSpeed = 'N/A';
     if (overallSpeeds.length > 0) {
-        overallMaxSpeed = Math.max(...overallSpeeds).toFixed(2);
-        overallAverageSpeed = (overallSpeeds.reduce((a, b) => a + b, 0) / overallSpeeds.length).toFixed(2);
+        overallMaxSpeed = Math.max(...overallSpeeds).toFixed(0);
+        overallAverageSpeed = (overallSpeeds.reduce((a, b) => a + b, 0) / overallSpeeds.length).toFixed(0);
         const overallFreq = {}; let overallMaxFreq = 0;
         overallSpeeds.forEach(s => {
             const speedInt = Math.floor(s);
@@ -777,4 +819,3 @@ function getStopChartData(stops, data) {
     });
     return { labels: distanceLabels, datasets };
 }
-
