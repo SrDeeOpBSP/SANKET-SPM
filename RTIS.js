@@ -1,36 +1,105 @@
+// RTIS.js - Full updated with Medha BFT/BPT + improved crew-call analysis
+// Replace your existing RTIS.js with this file.
+
 const spmConfig = {
     type: 'RTIS',
-    // Column names from the RTIS XLSX file (Yeh ab "default" ya "old" format hai)
+    // Legacy defaults (used if auto-detect fails)
     columnNames: {
         time: 'Gps Time',
         distance: 'distFromPrevLatLng',
         speed: 'Speed',
-        event: 'Event' // Virtual column created by the script
+        event: 'Event'
     },
     eventCodes: {
-        zeroSpeed: 'STOP' // Internal code for zero speed
+        zeroSpeed: 'STOP'
     },
     brakeTests: {
-       GOODS: {
-            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 40, maxSpeed: 50, maxDuration: 60 * 1000 }
+        GOODS: {
+            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 35, maxSpeed: 50, maxDuration: 60 * 1000 }
         },
         COACHING: {
-            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 60, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
         },
         MEMU: {
-            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 60, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
         }
     }
 };
 
-// Global chart instances
+// Globals
 let speedChartInstance = null;
 let stopChartInstance = null;
 
-// CUG.csv file parser (reused)
+// ---------- Utilities ----------
+function findHeaderLike(headers, patterns) {
+    if (!headers || !headers.length) return null;
+    const lowerHeaders = headers.map(h => (h || '').toString().trim().toLowerCase());
+    for (const pat of patterns) {
+        const lp = pat.toLowerCase();
+        const idx = lowerHeaders.findIndex(h => h.includes(lp));
+        if (idx !== -1) return headers[idx];
+    }
+    return null;
+}
+
+function excelSerialToJSDate(serial) {
+    const epoch = Date.UTC(1899, 11, 30);
+    const milliseconds = Math.round(serial * 24 * 3600 * 1000);
+    const utcDate = new Date(epoch + milliseconds);
+    const localDate = new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60 * 1000));
+    return localDate;
+}
+
+function parseExcelOrStringDate(value) {
+    if (value === null || value === undefined) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === 'number') return excelSerialToJSDate(value);
+    const str = value.toString().trim();
+    if (!str) return null;
+    if (/^\d+(\.\d+)?$/.test(str)) {
+        return excelSerialToJSDate(Number(str));
+    }
+    const d1 = new Date(str);
+    if (!isNaN(d1.getTime())) return d1;
+    const regex = /^(?:(\d{2})[-\/](\d{2})[-\/](\d{4})|(\d{4})[-\/](\d{2})[-\/](\d{2}))\s+(\d{2}):(\d{2})(?::(\d{2}))?$/;
+    const m = str.match(regex);
+    if (m) {
+        if (m[1]) {
+            const iso = `${m[3]}-${m[2]}-${m[1]}T${m[7]}:${m[8] || '00'}:${m[9] || '00'}`;
+            const d2 = new Date(iso);
+            if (!isNaN(d2.getTime())) return d2;
+        } else {
+            const iso = `${m[4]}-${m[5]}-${m[6]}T${m[7]}:${m[8] || '00'}:${m[9] || '00'}`;
+            const d2 = new Date(iso);
+            if (!isNaN(d2.getTime())) return d2;
+        }
+    }
+    const d3 = new Date(str.replace(' ', 'T'));
+    return (!isNaN(d3.getTime())) ? d3 : null;
+}
+
+function findNumericColumn(headers, rows) {
+    if (!headers || !rows || rows.length === 0) return null;
+    const scores = headers.map(h => 0);
+    headers.forEach((h, i) => {
+        let numericCount = 0, total = 0;
+        for (let r = 0; r < Math.min(rows.length, 50); r++) {
+            const val = rows[r][h];
+            if (val === null || val === undefined || val === '') continue;
+            total++;
+            if (!isNaN(parseFloat(val))) numericCount++;
+        }
+        scores[i] = total > 0 ? (numericCount / total) : 0;
+    });
+    const maxScore = Math.max(...scores);
+    if (maxScore >= 0.6) return headers[scores.indexOf(maxScore)];
+    return null;
+}
+
+// ---------- CUG parser ----------
 const parseAndProcessCugData = (file) => {
     return new Promise((resolve, reject) => {
         if (!file) return reject(new Error('CUG file is missing.'));
@@ -68,7 +137,54 @@ const parseAndProcessCugData = (file) => {
     });
 };
 
-// Main form submission handler
+// ---------- Medha-style trackSpeedReduction (improved) ----------
+function trackSpeedReductionMedha(data, startIdx, maxDurationMs) {
+    const start = data[startIdx];
+    if (!start) return null;
+    const startSpeed = start.Speed;
+    const startTime = start.Time.getTime();
+    let lowestSpeed = startSpeed;
+    let lowestIdx = startIdx;
+    let speedHitZero = false;
+
+    let increaseStartTime = null;
+    let speedAtIncreaseStart = 0;
+
+    for (let i = startIdx + 1; i < data.length; i++) {
+        const curr = data[i];
+        const currSpeed = curr.Speed;
+        const currTime = curr.Time.getTime();
+
+        if (currTime - startTime > maxDurationMs) break;
+        if (currSpeed === 0) {
+            speedHitZero = true;
+            break;
+        }
+
+        if (currSpeed <= lowestSpeed) {
+            lowestSpeed = currSpeed;
+            lowestIdx = i;
+            increaseStartTime = null;
+        } else {
+            if (increaseStartTime === null) {
+                increaseStartTime = currTime;
+                speedAtIncreaseStart = lowestSpeed;
+            }
+            const increaseDuration = currTime - increaseStartTime;
+            const increaseMagnitude = currSpeed - speedAtIncreaseStart;
+            if (increaseMagnitude > 2 || increaseDuration > 2000) {
+                break;
+            }
+        }
+    }
+
+    if (speedHitZero || lowestIdx === startIdx) return null;
+
+    const endTime = data[lowestIdx].Time.getTime();
+    return { index: lowestIdx, speed: lowestSpeed, timeDiff: (endTime - startTime) / 1000 };
+}
+
+// ---------- Main form submit (RTIS) ----------
 document.getElementById('spmForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     showToast('Processing RTIS file, please wait...');
@@ -77,12 +193,13 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
     try {
         if (speedChartInstance) speedChartInstance.destroy();
         if (stopChartInstance) stopChartInstance.destroy();
-        // --- YEH NAYA CODE ADD KAREIN ---
-           // Step 1: File aur data ko pehle Google Drive par upload karega.
-           showToast('Uploading data and SPM file to Google Drive. This may take a moment...');
-           await uploadDataAndFileToGoogle();
-           showToast('Upload complete! Now analyzing the data for the report...');
-           // --- NAYA CODE YAHAN KHATAM ---
+
+        // Upload step (kept from your earlier code)
+        showToast('Uploading data and SPM file to Google Drive. This may take a moment...');
+        await uploadDataAndFileToGoogle();
+        showToast('Upload complete! Now analyzing the data for the report...');
+
+        // Collect form fields
         const lpId = document.getElementById('lpId').value.trim();
         const lpName = document.getElementById('lpName').value.trim();
         const lpDesg = document.getElementById('lpDesg').value.trim();
@@ -115,79 +232,126 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
         const lpCalls = cugData.filter(call => call['CUG MOBILE NO'] === lpCugNumber && call.startDateTime >= fromDateTime && call.startDateTime <= toDateTime);
         const alpCalls = cugData.filter(call => call['CUG MOBILE NO'] === alpCugNumber && call.startDateTime >= fromDateTime && call.startDateTime <= toDateTime);
 
-        // XLSX file reading logic
+        // Read XLSX with cellDates:true
         const reader = new FileReader();
         reader.onload = async (event) => {
             try {
                 const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                const jsonDataRaw = XLSX.utils.sheet_to_json(worksheet, { defval: null });
 
-                if (jsonData.length === 0) throw new Error("The selected XLSX file is empty or invalid.");
+                if (jsonDataRaw.length === 0) throw new Error("The selected XLSX file is empty or invalid.");
 
-                // ===============================================
-                // === RTIS Format Detection (Aapke pichle request se) ===
-                // ===============================================
-                let effectiveColumnNames = {};
-                const firstRow = jsonData[0];
+                const headers = Object.keys(jsonDataRaw[0]);
 
-                if (firstRow['Logging Time'] && firstRow['Speed'] && firstRow['distFromPrevLatLng']) {
-                    // Yeh NAYA format hai
-                    showToast('New RTIS format (Logging Time) detected.');
-                    effectiveColumnNames = {
-                        time: 'Logging Time',
-                        distance: 'distFromPrevLatLng',
-                        speed: 'Speed',
-                        event: 'Event' // Virtual column
-                    };
-                } else if (firstRow['Gps Time'] && firstRow['Speed'] && firstRow['distFromPrevLatLng']) {
-                    // Yeh PURANA format hai
-                    showToast('Old RTIS format (Gps Time) detected.');
-                    effectiveColumnNames = {
-                        time: 'Gps Time',
-                        distance: 'distFromPrevLatLng',
-                        speed: 'Speed',
-                        event: 'Event' // Virtual column
-                    };
-                } else {
-                    // Format nahi pehchana
-                    console.error('File headers:', Object.keys(firstRow));
-                    throw new Error('Invalid RTIS file format. Required columns (Time, Speed, Distance) not found.');
+                // Resolve keys (auto-detect)
+                let timeKey = spmConfig.columnNames.time;
+                let speedKey = spmConfig.columnNames.speed;
+                let distanceKey = spmConfig.columnNames.distance;
+
+                const trainBiasNew = (trainNumber && trainNumber.toString().trim() === '37178');
+                const trainBiasOld = (trainNumber && trainNumber.toString().trim() === '41143');
+
+                const hasDeviceId = headers.find(h => (h || '').toString().toLowerCase().includes('device'));
+                const hasLoggingTime = headers.find(h => (h || '').toString().toLowerCase().includes('logging') || (h || '').toString().toLowerCase().includes('logging time') || (h || '').toString().toLowerCase().includes('loggingtime'));
+                const hasLatitude = headers.find(h => (h || '').toString().toLowerCase().includes('latitude'));
+                const hasLongitude = headers.find(h => (h || '').toString().toLowerCase().includes('longitude'));
+                const hasDistFromPrev = headers.find(h => (h || '').toString().toLowerCase().includes('distfromprev') || (h || '').toString().toLowerCase().includes('distfromprevlatlng'));
+                const hasDistFromSpeed = headers.find(h => (h || '').toString().toLowerCase().includes('distfromspeed'));
+
+                let likelyNewFormat = false;
+                if (trainBiasNew) likelyNewFormat = true;
+                else if (trainBiasOld) likelyNewFormat = false;
+                else {
+                    if (hasDeviceId && (hasLoggingTime || hasLatitude || hasLongitude)) likelyNewFormat = true;
                 }
-                // === BADLAAV KHATAM ===
-                
 
-                // Process the extracted JSON data
+                if (likelyNewFormat) {
+                    timeKey = hasLoggingTime || findHeaderLike(headers, ['logging time', 'loggingtime', 'log time', 'timestamp']);
+                    speedKey = findHeaderLike(headers, ['speed', 'spd']) || speedKey;
+                    distanceKey = hasDistFromPrev || findHeaderLike(headers, ['distfromprevlatlng', 'distfromprev', 'dist from prev']);
+                    if (!distanceKey) {
+                        const numericCandidate = findNumericColumn(headers, jsonDataRaw);
+                        if (numericCandidate && numericCandidate !== speedKey && numericCandidate !== timeKey) distanceKey = numericCandidate;
+                    }
+                } else {
+                    timeKey = findHeaderLike(headers, ['gps time', 'gps_time', 'time', 'timestamp', 'date time']) || timeKey;
+                    speedKey = findHeaderLike(headers, ['speed', 'spd']) || speedKey;
+                    distanceKey = findHeaderLike(headers, ['distfromprevlatlng', 'distfromprev', 'distance', 'dist from prev']) || distanceKey;
+                }
+
+                if (!speedKey || !headers.includes(speedKey)) {
+                    const possibleSpeed = findHeaderLike(headers, ['speed', 'spd', 'spped']);
+                    if (possibleSpeed) speedKey = possibleSpeed;
+                    else {
+                        let candidate = null;
+                        for (const h of headers) {
+                            let validSpeedCount = 0, total = 0;
+                            for (let i = 0; i < Math.min(80, jsonDataRaw.length); i++) {
+                                const v = jsonDataRaw[i][h];
+                                if (v === null || v === undefined || v === '') continue;
+                                total++;
+                                const n = parseFloat(v);
+                                if (!isNaN(n) && n >= 0 && n <= 300) validSpeedCount++;
+                            }
+                            if (total > 0 && (validSpeedCount / total) > 0.6) { candidate = h; break; }
+                        }
+                        if (candidate) speedKey = candidate;
+                    }
+                }
+
+                if (!timeKey || !headers.includes(timeKey)) {
+                    const possibleTime = findHeaderLike(headers, ['logging time', 'gps time', 'time', 'timestamp', 'date']);
+                    if (possibleTime) timeKey = possibleTime;
+                    else timeKey = headers[0];
+                }
+
+                if (!distanceKey || !headers.includes(distanceKey)) {
+                    distanceKey = findHeaderLike(headers, ['distfromprev', 'distfromprevlatlng', 'distance', 'dist']) || hasDistFromSpeed || findNumericColumn(headers, jsonDataRaw);
+                }
+
+                console.log('Resolved keys:', { timeKey, speedKey, distanceKey, likelyNewFormat, trainNumber });
+
                 let cumulativeDistanceMeters = 0;
-                const parsedData = jsonData.map(row => {
-                    // Yahan 'effectiveColumnNames' ka istemal karein
-                    const distanceIncrement = parseFloat(row[effectiveColumnNames.distance]) || 0;
+                const parsedData = jsonDataRaw.map((row, idx) => {
+                    const incrRaw = row[distanceKey];
+                    const distanceIncrement = parseFloat(incrRaw) || 0;
                     cumulativeDistanceMeters += distanceIncrement;
 
-                    let timeValue = row[effectiveColumnNames.time]; 
-                    let parsedTime;
-                    if (typeof timeValue === 'number') {
-                        parsedTime = new Date(XLSX.SSF.format('yyyy-mm-dd HH:mm:ss', timeValue));
-                    } else if (typeof timeValue === 'string') {
-                        parsedTime = new Date(timeValue);
-                    } else {
+                    const timeValue = row[timeKey];
+                    let parsedTime = parseExcelOrStringDate(timeValue);
+                    if ((!parsedTime || isNaN(parsedTime.getTime())) && typeof timeValue === 'string' && /^\d+(\.\d+)?$/.test(timeValue.trim())) {
+                        parsedTime = excelSerialToJSDate(Number(timeValue.trim()));
+                    }
+                    if (!parsedTime || isNaN(parsedTime.getTime())) {
+                        console.warn(`Row ${idx} invalid time:`, timeValue);
                         return null;
                     }
 
-                    if (isNaN(parsedTime.getTime())) return null;
+                    let speedVal = row[speedKey];
+                    if (speedVal === null || speedVal === undefined || speedVal === '') {
+                        const alt = Object.keys(row).find(h => {
+                            const v = row[h];
+                            const n = parseFloat(v);
+                            return !isNaN(n) && n >= 0 && n <= 300;
+                        });
+                        speedVal = alt ? row[alt] : 0;
+                    }
+                    const speed = parseFloat(speedVal) || 0;
 
                     return {
                         Time: parsedTime,
-                        Distance: cumulativeDistanceMeters / 1000, // in KM
-                        Speed: parseFloat(row[effectiveColumnNames.speed]) || 0, 
-                        EventGn: (parseFloat(row[effectiveColumnNames.speed]) === 0) ? spmConfig.eventCodes.zeroSpeed : ''
+                        Distance: cumulativeDistanceMeters / 1000,
+                        Speed: speed,
+                        EventGn: (speed === 0) ? spmConfig.eventCodes.zeroSpeed : ''
                     };
                 }).filter(Boolean);
 
                 if (parsedData.length === 0) throw new Error('No valid data with recognizable dates found in the file.');
-                
+
+                // station map
                 const stationMap = new Map();
                 window.stationSignalData.filter(r => r['SECTION'] === section).forEach(r => {
                     if (!stationMap.has(r['STATION'])) stationMap.set(r['STATION'], { name: r['STATION'], distance: parseFloat(r['CUMMULATIVE DISTANT(IN Meter)']) || 0 });
@@ -199,6 +363,7 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 const fromDistance = fromStation.distance;
                 parsedData.forEach(row => row.NormalizedDistance = (row.Distance * 1000) - fromDistance);
 
+                // Departure detection (first valid movement)
                 let departureIndex = parsedData.findIndex((row, i, arr) => {
                     if (row.Time < fromDateTime || row.Time > toDateTime || row.Speed < 1) return false;
                     let distMoved = 0, startDist = row.Distance;
@@ -212,10 +377,10 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 });
 
                 if (departureIndex === -1) throw new Error('No valid departure found.');
-                
+
                 let filteredData = parsedData.filter(row => row.Time >= parsedData[departureIndex].Time && row.Time <= toDateTime);
                 if (filteredData.length === 0) throw new Error('No data found after departure.');
-                
+
                 const initialDistance = filteredData[0].NormalizedDistance;
                 let normalizedData = filteredData.map(row => ({ ...row, Distance: row.NormalizedDistance - initialDistance }));
 
@@ -224,19 +389,119 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                 const routeStations = stationsData.slice(Math.min(fromIdx, toIdx), Math.max(fromIdx, toIdx) + 1);
                 let normalizedStations = routeStations.map(s => ({ name: s.name, distance: Math.abs(s.distance - fromDistance) }));
 
-                // --- Full Analysis ---
+                // --------- ANALYSIS: OverSpeed, WheelSlip/Skid, Stops, Brake Tests (Medha) ---------
                 const overSpeedDetails = getOverSpeedDetails(normalizedData, maxPermissibleSpeed, normalizedStations);
                 const { wheelSlipDetails, wheelSkidDetails } = getWheelSlipAndSkidDetails(normalizedData, normalizedStations);
+
                 let stops = getStopDetails(normalizedData, spmConfig.eventCodes.zeroSpeed, section, fromDistance, normalizedStations, rakeType);
-                const { bftDetails, bptDetails } = getBrakeTestDetails(normalizedData, spmConfig.brakeTests[rakeType]);
-                
-                // Yahan 'analyzeCalls' function (jo ab Telpro se liya gaya hai) call ho raha hai
-                const crewCallData = [...analyzeCalls(lpCalls, lpDesg || 'LP', normalizedData), ...analyzeCalls(alpCalls, alpDesg || 'ALP', normalizedData)];
-                
+
+                // BFT/BPT using Medha improved logic (first instance)
+                const brakeConf = spmConfig.brakeTests[rakeType] || spmConfig.brakeTests.GOODS;
+                let bftDetails = null, bptDetails = null, bftMissed = false, bptMissed = false;
+
+                for (let i = 0; i < normalizedData.length; i++) {
+                    const row = normalizedData[i];
+                    const speed = row.Speed;
+
+                    // BFT
+                    if (!bftDetails && !bftMissed) {
+                        if (speed >= brakeConf.bft.minSpeed && speed <= brakeConf.bft.maxSpeed) {
+                            const res = trackSpeedReductionMedha(normalizedData, i, brakeConf.bft.maxDuration);
+                            if (res && res.timeDiff > 1) {
+                                const reduction = speed - res.speed;
+                                if (reduction >= 5) {
+                                    bftDetails = {
+                                        time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                        startSpeed: speed.toFixed(2),
+                                        endSpeed: res.speed.toFixed(2),
+                                        reduction: reduction.toFixed(2),
+                                        timeTaken: res.timeDiff.toFixed(0),
+                                        endTime: normalizedData[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                    };
+                                }
+                            }
+                        } else if (speed > brakeConf.bft.maxSpeed) {
+                            bftMissed = true;
+                        }
+                    }
+
+                    // BPT
+                    if (!bptDetails && !bptMissed) {
+                        if (speed >= brakeConf.bpt.minSpeed && speed <= brakeConf.bpt.maxSpeed) {
+                            const res = trackSpeedReductionMedha(normalizedData, i, brakeConf.bpt.maxDuration);
+                            if (res && res.timeDiff > 1) {
+                                const reduction = speed - res.speed;
+                                const requiredReduction = Math.max(5, speed * 0.40); // Medha: >=40% OR >=5 kmph
+                                if (reduction >= requiredReduction) {
+                                    bptDetails = {
+                                        time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
+                                        startSpeed: speed.toFixed(2),
+                                        endSpeed: res.speed.toFixed(2),
+                                        reduction: reduction.toFixed(2),
+                                        timeTaken: res.timeDiff.toFixed(0),
+                                        endTime: normalizedData[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
+                                    };
+                                }
+                            }
+                        } else if (speed > brakeConf.bpt.maxSpeed) {
+                            bptMissed = true;
+                        }
+                    }
+
+                    if ((bftDetails || bftMissed) && (bptDetails || bptMissed)) break;
+                }
+
+                // Crew call analysis (Medha style)
+                const analyzeCallsMedha = (calls, designation) => {
+                    if (!calls || calls.length === 0) return [];
+                    return calls.map((call, idx) => {
+                        const callStart = call.startDateTime;
+                        const callEnd = call.endDateTime;
+                        const totalDuration = call.duration || ((callEnd - callStart) / 1000);
+                        let runDuration = 0, stopDuration = 0, maxSpeed = 0;
+                        for (let i = 0; i < normalizedData.length; i++) {
+                            const rowTime = normalizedData[i].Time;
+                            if (rowTime >= callStart && rowTime <= callEnd) {
+                                const timeDiff = i < normalizedData.length - 1 ? (normalizedData[i + 1].Time - rowTime) / 1000 : 1;
+                                if (normalizedData[i].Speed > 1) {
+                                    runDuration += timeDiff;
+                                    maxSpeed = Math.max(maxSpeed, normalizedData[i].Speed);
+                                } else {
+                                    stopDuration += timeDiff;
+                                }
+                            }
+                        }
+                        const totalCalc = runDuration + stopDuration;
+                        if (totalCalc > 0) {
+                            // Proportionally scale to reported call duration
+                            const scale = totalDuration / totalCalc;
+                            runDuration = Math.round(runDuration * scale);
+                            stopDuration = Math.round(stopDuration * scale);
+                        } else {
+                            stopDuration = Math.round(totalDuration);
+                            runDuration = 0;
+                        }
+                        return {
+                            designation: `${designation} (Call ${idx + 1})`,
+                            totalDuration: Math.round(totalDuration),
+                            runDuration: runDuration,
+                            stopDuration: stopDuration,
+                            maxSpeed: maxSpeed > 0 ? maxSpeed.toFixed(2) : 'N/A',
+                            toNumbers: call['To Mobile Number'] || 'N/A'
+                        };
+                    });
+                };
+
+                const crewCallData = [...analyzeCallsMedha(lpCalls, lpDesg || 'LP'), ...analyzeCallsMedha(alpCalls, alpDesg || 'ALP')];
+
+                // Station arrival/departure
                 const stationStops = getStationArrivalDeparture(normalizedStations, stops, filteredData, normalizedData, fromSection, toSection);
+
+                // Speed summaries (functions defined below same as earlier)
                 const speedRangeSummary = calculateSpeedRangeSummary(normalizedData, rakeType, maxPermissibleSpeed);
                 const sectionSpeedSummary = calculateSectionSpeedSummary(normalizedData, normalizedStations, fromSection, toSection);
-                
+
+                // Charts & images (same pattern as before)
                 const maxPoints = 500;
                 const sampledData = normalizedData.length > maxPoints ? normalizedData.filter((_, i) => i % Math.ceil(normalizedData.length / maxPoints) === 0) : normalizedData;
                 const speedChartConfig = {
@@ -244,122 +509,67 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     speeds: sampledData.map(row => row.Speed)
                 };
                 const stopChartConfig = getStopChartData(stops, normalizedData);
-                let speedChartImage = null;
-                let stopChartImage = null;
-                 // ===================================================
-                // FINAL CHART TO IMAGE CONVERSION LOGIC (WITH ROTATION)
-                // ===================================================
 
-                // Speed Chart ko Image mein convert karein
+                let speedChartImage = null;
                 try {
                     const speedCtx = document.getElementById('speedChart').getContext('2d');
                     if (!speedCtx) throw new Error('Speed Chart canvas not found');
-                    
                     document.getElementById('speedChart').width = 600;
                     document.getElementById('speedChart').height = 400;
-
+                    if (speedChartInstance) speedChartInstance.destroy();
                     speedChartInstance = new Chart(speedCtx, {
                         type: 'line',
-                        data: {
-                            labels: speedChartConfig.labels,
-                            datasets: [{
-                                label: 'Speed',
-                                data: speedChartConfig.speeds,
-                                borderColor: '#00008B',
-                                borderWidth: 2,
-                                pointRadius: 0,
-                                fill: false,
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: false,
-                            animation: false, // Animation band karein for faster image capture
-                            scales: {
-                                x: { title: { display: true, text: 'Time' } },
-                                y: { title: { display: true, text: 'Speed (kmph)' }, beginAtZero: true }
-                            },
-                            plugins: { legend: { display: false } }
-                        }
+                        data: { labels: speedChartConfig.labels, datasets: [{ label: 'Speed', data: speedChartConfig.speeds, borderColor: '#00008B', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.4 }] },
+                        options: { responsive: false, animation: false, scales: { x: { title: { display: true, text: 'Time' } }, y: { title: { display: true, text: 'Speed (kmph)' }, beginAtZero: true } }, plugins: { legend: { display: false } } }
                     });
-
                     speedChartImage = await new Promise((resolve) => {
                         speedChartInstance.options.animation = {
                             onComplete: () => {
                                 const tempCanvas = document.createElement('canvas');
-                                tempCanvas.width = 400;
-                                tempCanvas.height = 600;
+                                tempCanvas.width = 400; tempCanvas.height = 600;
                                 const tempCtx = tempCanvas.getContext('2d');
-                                tempCtx.translate(400, 0);
-                                tempCtx.rotate(Math.PI / 2);
+                                tempCtx.translate(400, 0); tempCtx.rotate(Math.PI / 2);
                                 const img = new Image();
                                 img.src = document.getElementById('speedChart').toDataURL('image/png');
-                                img.onload = () => {
-                                    tempCtx.drawImage(img, 0, 0, 600, 400);
-                                    resolve(tempCanvas.toDataURL('image/png', 1.0));
-                                    speedChartInstance.destroy();
-                                };
+                                img.onload = () => { tempCtx.drawImage(img, 0, 0, 600, 400); resolve(tempCanvas.toDataURL('image/png', 1.0)); speedChartInstance.destroy(); };
                             }
                         };
                         speedChartInstance.update();
                     });
-
-                } catch (error) {
-                    console.error('Error generating speed chart image:', error);
+                } catch (err) {
+                    console.error('Error generating speed chart image:', err);
                 }
 
-                // Stop Chart ko Image mein convert karein
+                let stopChartImage = null;
                 try {
                     const stopCtx = document.getElementById('stopChart').getContext('2d');
                     if (!stopCtx) throw new Error('Stop Chart canvas not found');
-
                     document.getElementById('stopChart').width = 600;
                     document.getElementById('stopChart').height = 400;
-
+                    if (stopChartInstance) stopChartInstance.destroy();
                     stopChartInstance = new Chart(stopCtx, {
                         type: 'line',
-                        data: {
-                            labels: stopChartConfig.labels,
-                            datasets: stopChartConfig.datasets
-                        },
-                        options: {
-                            responsive: false,
-                            animation: false, // Animation band karein
-                            scales: {
-                                x: { title: { display: true, text: 'Distance Before Stop (m)' } },
-                                y: { title: { display: true, text: 'Speed (kmph)' }, beginAtZero: true }
-                            },
-                            plugins: {
-                                legend: { display: true, position: 'top' },
-                                title: { display: true, text: 'Speed vs. Distance Before Stop' }
-                            }
-                        }
+                        data: { labels: stopChartConfig.labels, datasets: stopChartConfig.datasets },
+                        options: { responsive: false, animation: false, scales: { x: { title: { display: true, text: 'Distance Before Stop (m)' } }, y: { title: { display: true, text: 'Speed (kmph)' }, beginAtZero: true } }, plugins: { legend: { display: true, position: 'top' }, title: { display: true, text: 'Speed vs. Distance Before Stop' } } }
                     });
-
                     stopChartImage = await new Promise((resolve) => {
                         stopChartInstance.options.animation = {
                             onComplete: () => {
                                 const tempCanvas = document.createElement('canvas');
-                                tempCanvas.width = 400;
-                                tempCanvas.height = 600;
+                                tempCanvas.width = 400; tempCanvas.height = 600;
                                 const tempCtx = tempCanvas.getContext('2d');
-                                tempCtx.translate(400, 0);
-                                tempCtx.rotate(Math.PI / 2);
+                                tempCtx.translate(400, 0); tempCtx.rotate(Math.PI / 2);
                                 const img = new Image();
                                 img.src = document.getElementById('stopChart').toDataURL('image/png');
-                                img.onload = () => {
-                                    tempCtx.drawImage(img, 0, 0, 600, 400);
-                                    resolve(tempCanvas.toDataURL('image/png', 1.0));
-                                    stopChartInstance.destroy();
-                                };
+                                img.onload = () => { tempCtx.drawImage(img, 0, 0, 600, 400); resolve(tempCanvas.toDataURL('image/png', 1.0)); stopChartInstance.destroy(); };
                             }
                         };
                         stopChartInstance.update();
                     });
-
-                } catch (error) {
-                    console.error('Error generating stop chart image:', error);
+                } catch (err) {
+                    console.error('Error generating stop chart image:', err);
                 }
+
                 const reportData = {
                     trainDetails: [
                         { label: 'Loco Number', value: locoNumber }, { label: 'Train Number', value: trainNumber },
@@ -373,9 +583,9 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     stopCount: stops.length, bftDetails, bptDetails, crewCallData, stops, stationStops,
                     overSpeedDetails, wheelSlipDetails, wheelSkidDetails,
                     speedRangeSummary, sectionSpeedSummary,
-                    speedChartConfig, stopChartConfig,speedChartImage,stopChartImage
+                    speedChartConfig, stopChartConfig, speedChartImage, stopChartImage
                 };
-                
+
                 localStorage.setItem('spmReportData', JSON.stringify(reportData));
                 window.location.href = 'report.html';
 
@@ -398,91 +608,28 @@ document.getElementById('spmForm').addEventListener('submit', async (e) => {
     }
 });
 
-
-// --- ALL HELPER ANALYSIS FUNCTIONS ---
+// ---------- Helper analysis functions (existing logic kept) ----------
 
 function getOverSpeedDetails(data, maxSpeed, stations) {
-    const details = [];
-    let group = null;
+    const details = []; let group = null;
     data.forEach((row, index) => {
-        // Check agar speed max permissible speed se zyada hai
         if (row.Speed > maxSpeed) {
-            let sectionName = 'Unknown';
-            // Section ka naam pata karein
-            for (let i = 0; i < stations.length - 1; i++) {
-                const startStation = stations[i];
-                const endStation = stations[i + 1];
-                // RTIS mein Distance meters mein hai
-                if (row.Distance >= startStation.distance && row.Distance < endStation.distance) {
-                    sectionName = `${startStation.name}-${endStation.name}`;
-                    break;
-                }
-            }
-             // Fallback agar station ke beech nahi hai (optional, par rakha hai)
-             if (sectionName === 'Unknown') {
-                 const atStationOrSignal = window.stationSignalData.find(signalRow => {
-                     if (signalRow['SECTION'] !== section) return false; // Ensure section variable is accessible or passed
-                     const signalAbsoluteDistanceCSV = parseFloat(signalRow['CUMMULATIVE DISTANT(IN Meter)']);
-                     // Note: Ensure 'initialDistance' is accessible if needed, or adjust logic
-                     // Assuming row.Distance is already relative for RTIS after normalization
-                     const rangeStart = signalAbsoluteDistanceCSV - fromDistance - 400; // Adjust for relative distance
-                     const rangeEnd = signalAbsoluteDistanceCSV - fromDistance + 400; // Adjust for relative distance
-                     return row.Distance >= rangeStart && row.Distance <= rangeEnd;
-                 });
-                 if (atStationOrSignal) {
-                     sectionName = `${atStationOrSignal['STATION']} ${atStationOrSignal['SIGNAL NAME'] || ''}`.trim();
-                 }
-            }
-
-
-            // Naya group shuru karne ya section badalne ki logic
-            // Time comparison ke liye .getTime() use karein
-            if (!group || group.section !== sectionName || (index > 0 && (row.Time.getTime() - data[index - 1].Time.getTime()) > 10000)) {
-                // Agar pehle se koi group chal raha tha, use save karein
-                if (group) {
-                    details.push({
-                        section: group.section,
-                        timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}`,
-                        speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}`
-                    });
-                }
-                // Naya group shuru karein
-                group = {
-                    section: sectionName,
-                    startTime: row.Time,
-                    endTime: row.Time,
-                    minSpeed: row.Speed,
-                    maxSpeed: row.Speed
-                };
+            let sectionName = stations.slice(0, -1).find((s, i) => row.Distance >= s.distance && row.Distance < stations[i + 1].distance);
+            sectionName = sectionName ? `${sectionName.name}-${stations[stations.indexOf(sectionName) + 1].name}` : 'Unknown';
+            if (!group || group.section !== sectionName || (index > 0 && (row.Time.getTime() - data[index-1].Time.getTime()) > 10000)) {
+                if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
+                group = { section: sectionName, startTime: row.Time, endTime: row.Time, minSpeed: row.Speed, maxSpeed: row.Speed };
             } else {
-                // Maujooda group ko update karein
                 group.endTime = row.Time;
                 group.minSpeed = Math.min(group.minSpeed, row.Speed);
                 group.maxSpeed = Math.max(group.maxSpeed, row.Speed);
             }
-        } else {
-            // --- YAHI HAI ASLI SUDHAAR ---
-            // Agar speed MPS se neeche jaati hai, toh current group ko band kar dein
-            if (group) {
-                details.push({
-                    section: group.section,
-                    timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}`,
-                    speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}`
-                });
-                group = null; // Group ko reset karein
-            }
-            // --- SUDHAAR KHATAM ---
+        } else if (group) {
+            details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
+            group = null;
         }
     });
-    // Loop ke baad aakhri bacha hua group (agar hai) ko add karein
-    if (group) {
-         details.push({
-            section: group.section,
-            timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12:false})}`,
-            speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}`
-        });
-    }
-    console.log('OverSpeed Details:', details); // Console log ko function ke andar rakhein
+    if (group) details.push({ ...group, timeRange: `${group.startTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}-${group.endTime.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:false})}`, speedRange: `${group.minSpeed.toFixed(2)}-${group.maxSpeed.toFixed(2)}` });
     return details;
 }
 
@@ -491,7 +638,7 @@ function getWheelSlipAndSkidDetails(data, stations) {
     data.forEach((row, index) => {
         if (index === 0) return;
         const prevRow = data[index - 1];
-        const timeDiffSec = (row.Time - prevRow.Time) / 1000;
+        const timeDiffSec = (row.Time.getTime() - prevRow.Time.getTime()) / 1000;
         if (timeDiffSec <= 0 || timeDiffSec > 5) return;
         const speedDiff = (row.Speed - prevRow.Speed) / timeDiffSec;
         let sectionName = stations.slice(0, -1).find((s, i) => row.Distance >= s.distance && row.Distance < stations[i + 1].distance);
@@ -508,14 +655,14 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
     let stops = []; let currentGroup = [];
     potentialStops.forEach((stop, i) => {
         currentGroup.push(stop);
-        const isLast = i === potentialStops.length - 1 || (potentialStops[i + 1].time - stop.time) > 10000;
+        const isLast = i === potentialStops.length - 1 || (potentialStops[i + 1].time.getTime() - stop.time.getTime()) > 10000;
         if (isLast && currentGroup.length > 0) { stops.push(currentGroup[0]); currentGroup = []; }
     });
     stops = stops.filter((stop, i, arr) => i === 0 || Math.abs(stop.kilometer - arr[i - 1].kilometer) >= 200);
     let processedStops = stops.map((stop, stopIndex) => {
         let startTimeObject = null;
         for (let i = stop.index + 1; i < data.length; i++) { if (data[i].Speed > 0) { startTimeObject = data[i].Time; break; } }
-        const duration = startTimeObject ? (startTimeObject - stop.time) / 1000 : 0;
+        const duration = startTimeObject ? (startTimeObject.getTime() - stop.time.getTime()) / 1000 : 0;
         return { ...stop, duration, isLastStopOfJourney: stopIndex === stops.length - 1 };
     });
     stops = processedStops.filter(stop => stop.duration >= 10 || stop.isLastStopOfJourney);
@@ -528,8 +675,8 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
         let atStation = window.stationSignalData.find(row => row['SECTION'] === section && Math.abs((parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDist) - stop.kilometer) <= 400);
         if (atStation) stop.stopLocation = `${atStation['STATION']} ${atStation['SIGNAL NAME'] || ''}`.trim();
         else { let sec = stations.slice(0, -1).find((s, i) => stop.kilometer >= s.distance && stop.kilometer < stations[i+1].distance); stop.stopLocation = sec ? `${sec.name}-${stations[stations.indexOf(sec) + 1].name}` : 'Unknown'; }
-        const speedsBefore = [1000, 800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(2) || 'N/A');
-        const [s10, s8, s5, s1, s0] = speedsBefore.map(s => parseFloat(s) || Infinity);
+        const speedsBefore = [800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(2) || 'N/A');
+        const [s8, s5, s1, s0] = speedsBefore.map(s => parseFloat(s) || Infinity);
         const smooth = rakeType === 'GOODS' ? (s8 <= 30 && s5 <= 25 && s1 <= 15 && s0 <= 10) : (s8 <= 60 && s5 <= 45 && s1 <= 30 && s0 <= 20);
         stop.brakingTechnique = smooth ? 'Smooth' : 'Late';
         stop.speedsBefore = speedsBefore;
@@ -537,176 +684,11 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
     return stops;
 }
 
-function getBrakeTestDetails(data, brakeConf) {
-    let bftDetails = null;
-    let bptDetails = null;
-
-    // Yeh function speed mein lagatar kami ko track karta hai
-    const trackSpeedReduction = (d, startIdx, maxDur) => {
-        const start = d[startIdx];
-        let lowest = start;
-        let endIdx = startIdx;
-        
-        // --- NAYE VARIABLES: Grace period ko track karne ke liye ---
-        let increaseStartTime = null;
-        let speedAtIncreaseStart = 0;
-
-        for (let i = startIdx + 1; i < d.length; i++) {
-            const curr = d[i];
-
-            // Agar test ka samay poora ho gaya, to ruk jao
-            if ((curr.Time - start.Time) > maxDur) {
-                break;
-            }
-            // Agar speed 0 ho gayi, to test anumaany (invalid) hai
-            if (curr.Speed === 0) {
-                return null;
-            }
-
-            // --- START: UPDATED LOGIC ---
-            if (curr.Speed <= lowest.Speed) {
-                // Case 1: Speed kam ho rahi hai ya sthir hai (Yeh normal hai)
-                lowest = curr;
-                endIdx = i;
-                // Agar koi grace period chal raha tha, to use reset kar dein
-                increaseStartTime = null;
-            } else {
-                // Case 2: Speed badh rahi hai, ab hum apni shartein check karenge
-                
-                // Agar speed badhna abhi shuru hi hua hai
-                if (increaseStartTime === null) {
-                    increaseStartTime = curr.Time; // Badhne ka samay note karein
-                    speedAtIncreaseStart = lowest.Speed; // Kis speed se badhna shuru hui, woh note karein
-                }
-
-                // Check karein ki limit cross hui ya nahi
-                const increaseDuration = curr.Time - increaseStartTime; // Kitni der se badh rahi hai
-                const increaseMagnitude = curr.Speed - speedAtIncreaseStart; // Kitni zyada badh gayi hai
-
-                if (increaseMagnitude > 2 || increaseDuration > 2000) {
-                    // Shart toot gayi: Ya to 2 Kmph se zyada badh gayi, ya 2 second se zyada ho gaye
-                    // Test ko yahin rok dein
-                    break;
-                }
-                // Agar yahan tak pahuche hain, matlab speed thodi badhi hai par limit ke andar hai.
-                // Isliye loop ko chalne dein.
-            }
-            // --- END: UPDATED LOGIC ---
-        }
-
-        // Agar speed bilkul kam nahi hui, to test anumaany hai
-        if (endIdx === startIdx) {
-            return null;
-        }
-        
-        // Sahi test ki details return karo
-        return {
-            speed: lowest.Speed,
-            timeDiff: (lowest.Time - start.Time) / 1000,
-            index: endIdx
-        };
-    };
-
-    // Poore data mein BFT aur BPT check karo
-    for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-
-        // --- BFT Check ---
-        if (!bftDetails && (row.Speed >= brakeConf.bft.minSpeed && row.Speed <= brakeConf.bft.maxSpeed)) {
-            const res = trackSpeedReduction(data, i, brakeConf.bft.maxDuration);
-            if (res && res.timeDiff > 1 && (row.Speed - res.speed) >= 5) {
-                bftDetails = {
-                    time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                    startSpeed: row.Speed.toFixed(2),
-                    endSpeed: res.speed.toFixed(2),
-                    reduction: (row.Speed - res.speed).toFixed(2),
-                    timeTaken: res.timeDiff.toFixed(0),
-                    endTime: data[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                };
-            }
-        }
-
-        // --- BPT Check ---
-        if (!bptDetails && (row.Speed >= brakeConf.bpt.minSpeed && row.Speed <= brakeConf.bpt.maxSpeed)) {
-            const res = trackSpeedReduction(data, i, brakeConf.bpt.maxDuration);
-            if (res && res.timeDiff > 1) {
-                const speedReduction = row.Speed - res.speed;
-                const requiredReduction = row.Speed * 0.40; // 40% rule
-
-                if (speedReduction >= requiredReduction) {
-                    bptDetails = {
-                        time: row.Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false }),
-                        startSpeed: row.Speed.toFixed(2),
-                        endSpeed: res.speed.toFixed(2),
-                        reduction: speedReduction.toFixed(2),
-                        timeTaken: res.timeDiff.toFixed(0),
-                        endTime: data[res.index].Time.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })
-                    };
-                }
-            }
-        }
-
-        // Agar dono test mil gaye hain, to aage check karne ki zaroorat nahi
-        if (bftDetails && bptDetails) {
-            break;
-        }
-    }
-
-    return { bftDetails, bptDetails };
-}
-
-// =================================================================
-// === SAHI CREW CALL ANALYSIS FUNCTION (TELPRO.JS SE LIYA GAYA) ===
-// =================================================================
-function analyzeCalls(calls, designation, spmData) {
-    return calls.map((call, index) => {
-        let runDuration = 0;
-        let stopDuration = 0;
-        let maxSpeed = 0;
-
-        // Step 1: Sirf call ke samay ka SPM data filter karein
-        const callSpmData = spmData.filter(row => 
-            row.Time >= call.startDateTime && row.Time <= call.endDateTime
-        );
-
-        // Step 2: Sirf filter kiye gaye data par गणना (iterate) karein
-        callSpmData.forEach((row, i) => {
-            // Aakhri data point ko chhod dein kyonki iske baad ka time nahi pata
-            if (i === callSpmData.length - 1) return; 
-
-            // Agle data point se time ka antar nikaalein
-            const nextRow = callSpmData[i + 1];
-            const timeDiff = (nextRow.Time - row.Time) / 1000; // Time diff in seconds
-
-            // Agar data mein bada gap hai (jaise 10 sec se zyada) to use chhod dein
-            if (timeDiff < 0 || timeDiff > 10) return; 
-
-            // Ab speed ke hisaab se run ya stop duration jodein
-            if (row.Speed > 1) { // 1 Kmph se zyada matlab "Run"
-                runDuration += timeDiff;
-                maxSpeed = Math.max(maxSpeed, row.Speed);
-            } else { // 1 Kmph ya usse kam matlab "Stop"
-                stopDuration += timeDiff;
-            }
-        });
-
-        // Step 3: Result return karein
-        return {
-            designation: `${designation} (Call ${index + 1})`,
-            totalDuration: Math.round(call.duration),
-            runDuration: Math.round(runDuration),
-            stopDuration: Math.round(stopDuration),
-            maxSpeed: maxSpeed.toFixed(2),
-            toNumbers: call['To Mobile Number'] || 'N/A'
-        };
-    });
-}
-
 function getStationArrivalDeparture(stations, stops, filteredData, normalizedData, from, to) {
     const timeFormat = { timeZone: 'Asia/Kolkata', hour12: false, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
     return stations.map((station, index) => {
         let arrival = 'N/A', departure = 'N/A';
-        const stationStop = stops.find(s => s.stopLocation.startsWith(station.name));
+        const stationStop = stops.find(s => s.stopLocation && s.stopLocation.startsWith(station.name));
         if (stationStop) {
             arrival = stationStop.timeString;
             departure = stationStop.startTiming;
@@ -746,73 +728,40 @@ function calculateSpeedRangeSummary(data, rakeType, mps) {
 
 function calculateSectionSpeedSummary(data, stations, from, to) {
     const summary = [];
-    
-    // Har ek station ke section ke liye loop chalayein
     for (let i = 0; i < stations.length - 1; i++) {
         const startStation = stations[i];
         const endStation = stations[i+1];
         const sectionName = `${startStation.name}-${endStation.name}`;
-        
         const sectionData = data.filter(d => d.Distance >= startStation.distance && d.Distance < endStation.distance);
-
         if (sectionData.length > 0) {
-            // YEH LINE ZAROORI HAI: Sirf 0 se zyada ki speed lein
             const speeds = sectionData.map(d => d.Speed).filter(s => s > 0);
-            
-            let modeSpeed = 'N/A';
-            let maxSpeed = 'N/A';
-            let averageSpeed = 'N/A';
-
+            let modeSpeed = 'N/A', maxSpeed = 'N/A', averageSpeed = 'N/A';
             if (speeds.length > 0) {
-                // Maximum aur Average Speed nikaalein
                 maxSpeed = Math.max(...speeds).toFixed(2);
                 averageSpeed = (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(2);
-
-                // Most Frequent Speed (Mode) nikaalein
-                const freq = {};
-                let maxFreq = 0;
+                const freq = {}; let maxFreq = 0;
                 speeds.forEach(s => {
                     const speedInt = Math.floor(s);
                     freq[speedInt] = (freq[speedInt] || 0) + 1;
-                    if (freq[speedInt] > maxFreq) {
-                        maxFreq = freq[speedInt];
-                        modeSpeed = speedInt;
-                    }
+                    if (freq[speedInt] > maxFreq) { maxFreq = freq[speedInt]; modeSpeed = speedInt; }
                 });
             }
             summary.push({ section: sectionName, modeSpeed, maxSpeed, averageSpeed });
         }
     }
-
-    // Poore route ke liye (Overall) summary
     const overallSpeeds = data.map(d => d.Speed).filter(s => s > 0);
-    let overallModeSpeed = 'N/A';
-    let overallMaxSpeed = 'N/A';
-    let overallAverageSpeed = 'N/A';
-
+    let overallModeSpeed = 'N/A', overallMaxSpeed = 'N/A', overallAverageSpeed = 'N/A';
     if (overallSpeeds.length > 0) {
         overallMaxSpeed = Math.max(...overallSpeeds).toFixed(2);
         overallAverageSpeed = (overallSpeeds.reduce((a, b) => a + b, 0) / overallSpeeds.length).toFixed(2);
-        
-        const overallFreq = {};
-        let overallMaxFreq = 0;
+        const overallFreq = {}; let overallMaxFreq = 0;
         overallSpeeds.forEach(s => {
             const speedInt = Math.floor(s);
             overallFreq[speedInt] = (overallFreq[speedInt] || 0) + 1;
-            if (overallFreq[speedInt] > overallMaxFreq) {
-                overallMaxFreq = overallFreq[speedInt];
-                overallModeSpeed = speedInt;
-            }
+            if (overallFreq[speedInt] > overallMaxFreq) { overallMaxFreq = overallFreq[speedInt]; overallModeSpeed = speedInt; }
         });
     }
-
-    summary.push({
-        section: `<strong>${from}-${to} (Overall)</strong>`,
-        modeSpeed: overallModeSpeed,
-        maxSpeed: overallMaxSpeed,
-        averageSpeed: overallAverageSpeed
-    });
-
+    summary.push({ section: `<strong>${from}-${to} (Overall)</strong>`, modeSpeed: overallModeSpeed, maxSpeed: overallMaxSpeed, averageSpeed: overallAverageSpeed });
     return summary;
 }
 
@@ -823,14 +772,8 @@ function getStopChartData(stops, data) {
             let closestRow = data.slice(0, stop.index).reverse().find(row => stop.kilometer - row.Distance >= targetDistance);
             return closestRow ? closestRow.Speed : 0;
         });
-        const colors = ['#FF0000', '#0000FF', '#008000', '#FFA500', '#800080', '#00FFFF', '#FF00FF', '#808080', '#000080', '#800000'];
-        return {
-            label: stop.stopLocation.substring(0, 20),
-            data: speeds,
-            borderColor: colors[index % colors.length],
-            fill: false,
-            tension: 0.2
-        };
+        const colors = ['#FF0000', '#0000FF', '#008000', '#FFA500', '#800080', '#00FFFF', '#FF00FF', '#808000', '#000080', '#800000'];
+        return { label: stop.stopLocation ? stop.stopLocation.substring(0, 20) : `Stop ${index+1}`, data: speeds, borderColor: colors[index % colors.length], fill: false, tension: 0.2 };
     });
     return { labels: distanceLabels, datasets };
 }
