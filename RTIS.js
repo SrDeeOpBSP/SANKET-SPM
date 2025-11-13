@@ -15,16 +15,16 @@ const spmConfig = {
     },
     brakeTests: {
         GOODS: {
-            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 35, maxSpeed: 50, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 39, maxSpeed: 51, maxDuration: 60 * 1000 }
         },
         COACHING: {
-            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 59, maxSpeed: 71, maxDuration: 60 * 1000 }
         },
         MEMU: {
-            bft: { minSpeed: 10, maxSpeed: 30, maxDuration: 60 * 1000 },
-            bpt: { minSpeed: 50, maxSpeed: 70, maxDuration: 60 * 1000 }
+            bft: { minSpeed: 14, maxSpeed: 21, maxDuration: 60 * 1000 },
+            bpt: { minSpeed: 59, maxSpeed: 71, maxDuration: 60 * 1000 }
         }
     }
 };
@@ -777,3 +777,4 @@ function getStopChartData(stops, data) {
     });
     return { labels: distanceLabels, datasets };
 }
+
