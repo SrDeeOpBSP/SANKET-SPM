@@ -99,6 +99,75 @@ function findNumericColumn(headers, rows) {
     return null;
 }
 
+// ---------- Robust speed lookup helpers ----------
+/**
+ * Find nearest previous row index such that row is before stopIndex.
+ * Returns object {idx, row, distDiff} where distDiff = Math.abs((stopKm - row.Distance) - targetMeters)
+ */
+function findNearestPreviousRow(stopIndex, stopKm, data, targetMeters) {
+    let best = null;
+    let bestDiff = Infinity;
+    for (let i = stopIndex - 1; i >= 0; i--) {
+        const diff = Math.abs((stopKm - data[i].Distance) - targetMeters);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            best = { idx: i, row: data[i], distDiff: diff };
+        }
+    }
+    return best;
+}
+
+/**
+ * Primary helper: returns speed (number) at approximately `targetMeters` before the stop.
+ * Strategy:
+ *  1) Try strict previous row where (stopKm - row.Distance) >= targetMeters (closest earlier row meeting threshold)
+ *  2) If none, pick nearest previous row (closest distance difference)
+ *  3) (Optional) Linear interpolation block is commented — enable if you prefer interpolated speeds.
+ */
+function getSpeedAtDistanceBeforeStop(stopIndex, stopKm, data, targetMeters) {
+    // 1) Strict search - earliest row from back meeting >= targetMeters
+    for (let i = stopIndex - 1; i >= 0; i--) {
+        const distBefore = stopKm - data[i].Distance;
+        if (distBefore >= targetMeters) {
+            return Number(data[i].Speed) || 0;
+        }
+    }
+
+    // 2) nearest previous row fallback
+    const nearest = findNearestPreviousRow(stopIndex, stopKm, data, targetMeters);
+    if (nearest && nearest.row) {
+        return Number(nearest.row.Speed) || 0;
+    }
+
+    // 3) FURTHER FALLBACK: If nothing found, return 0 (should be rare)
+    return 0;
+
+    /* OPTIONAL: Linear interpolation between surrounding rows (enable if you prefer)
+    // find two rows around the targetDistance (one just before and one just after target)
+    let before = null, after = null;
+    for (let i = stopIndex - 1; i >= 0; i--) {
+        const distBefore = stopKm - data[i].Distance;
+        if (distBefore >= targetMeters) { before = data[i]; break; }
+    }
+    // find 'after' (closer to stop, distance < targetMeters)
+    for (let i = stopIndex - 1; i >= 0; i--) {
+        const distBefore = stopKm - data[i].Distance;
+        if (distBefore < targetMeters) { after = data[i]; break; }
+    }
+    if (before && after) {
+        const d1 = stopKm - before.Distance; // >= targetMeters
+        const s1 = Number(before.Speed);
+        const d2 = stopKm - after.Distance; // < targetMeters
+        const s2 = Number(after.Speed);
+        // linear interpolate speed at targetMeters
+        const frac = (targetMeters - d2) / (d1 - d2);
+        return Number((s2 + frac * (s1 - s2)).toFixed(1));
+    }
+    // fallback nearest
+    return nearest ? Number(nearest.row.Speed) || 0 : 0;
+    */
+}
+
 // ---------- CUG parser ----------
 const parseAndProcessCugData = (file) => {
     return new Promise((resolve, reject) => {
@@ -717,9 +786,23 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
         let atStation = window.stationSignalData.find(row => row['SECTION'] === section && Math.abs((parseFloat(row['CUMMULATIVE DISTANT(IN Meter)']) - fromDist) - stop.kilometer) <= 400);
         if (atStation) stop.stopLocation = `${atStation['STATION']} ${atStation['SIGNAL NAME'] || ''}`.trim();
         else { let sec = stations.slice(0, -1).find((s, i) => stop.kilometer >= s.distance && stop.kilometer < stations[i+1].distance); stop.stopLocation = sec ? `${sec.name}-${stations[stations.indexOf(sec) + 1].name}` : 'Unknown'; }
-        const speedsBefore = [800, 500, 100, 50].map(d => data.slice(0, stop.index).reverse().find(r => stop.kilometer - r.Distance >= d)?.Speed.toFixed(0) || 'N/A');
-        const [s8, s5, s1, s0] = speedsBefore.map(s => parseFloat(s) || Infinity);
-        const smooth = rakeType === 'GOODS' ? (s8 <= 30 && s5 <= 25 && s1 <= 15 && s0 <= 10) : (s8 <= 60 && s5 <= 45 && s1 <= 30 && s0 <= 20);
+
+        // distances to report (meters) - order to match report.html: 1000, 800, 500, 100, 50
+        const targetList = [1000, 800, 500, 100, 50];
+
+        const speedsBefore = targetList.map(d => {
+            const sp = getSpeedAtDistanceBeforeStop(stop.index, stop.kilometer, data, d);
+            return (sp === null || sp === undefined) ? 'N/A' : Number(sp).toFixed(0);
+        });
+
+        // Convert to numeric for braking logic (Infinity if N/A)
+        const [s1000, s800, s500, s100, s50] = speedsBefore.map(s => isNaN(parseFloat(s)) ? Infinity : parseFloat(s));
+
+        // Smoothing thresholds - adjust if needed
+        const smooth = rakeType === 'GOODS'
+            ? (s1000 <= 30 && s800 <= 30 && s500 <= 25 && s100 <= 15 && s50 <= 10)
+            : (s1000 <= 60 && s800 <= 60 && s500 <= 45 && s100 <= 30 && s50 <= 20);
+
         stop.brakingTechnique = smooth ? 'Smooth' : 'Late';
         stop.speedsBefore = speedsBefore;
     });
@@ -808,11 +891,12 @@ function calculateSectionSpeedSummary(data, stations, from, to) {
 }
 
 function getStopChartData(stops, data) {
-    const distanceLabels = [1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 0];
+    // labels include common ticks; chart will plot speeds for each stop using robust lookup
+    const distanceLabels = [1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 50, 0];
     const datasets = stops.slice(0, 10).map((stop, index) => {
         const speeds = distanceLabels.map(targetDistance => {
-            let closestRow = data.slice(0, stop.index).reverse().find(row => stop.kilometer - row.Distance >= targetDistance);
-            return closestRow ? closestRow.Speed : 0;
+            const sp = getSpeedAtDistanceBeforeStop(stop.index, stop.kilometer, data, targetDistance);
+            return sp ? sp : 0;
         });
         const colors = ['#FF0000', '#0000FF', '#008000', '#FFA500', '#800080', '#00FFFF', '#FF00FF', '#808000', '#000080', '#800000'];
         return { label: stop.stopLocation ? stop.stopLocation.substring(0, 20) : `Stop ${index+1}`, data: speeds, borderColor: colors[index % colors.length], fill: false, tension: 0.2 };
