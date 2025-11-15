@@ -812,6 +812,7 @@ input:checked + .slider:before {
                             <option value="Laxven">Laxven</option>
                             <option value="Medha">Medha</option>
                             <option value="Telpro">Telpro</option>
+                            <option value="TelproNew">TelproNew</option>
                             <option value="MR">MR</option>
                             <option value="VEL">VEL</option>
                             <option value="RTIS">RTIS</option>
@@ -1401,20 +1402,25 @@ input:checked + .slider:before {
                 const spmTypeSelect = document.getElementById('spmType');
                 let currentScript = null;
 
-                spmTypeSelect.addEventListener('change', (e) => {
+               spmTypeSelect.addEventListener('change', (e) => {
                     const spmType = e.target.value;
                     const fileInput = document.getElementById('spmFile');
+
+                    // NAYA UPDATED LOGIC
                     if (spmType === 'Medha') {
-    fileInput.accept = '.txt';
-} else if (spmType === 'MR' || spmType === 'VEL') {
-    fileInput.accept = '.pdf';
-} else if (spmType === 'RTIS') {
-    // RTIS can be Excel or CSV
-    fileInput.accept = '.xlsx,.xls,.csv';
-} else {
-    // default: allow Excel and CSV as fallback
-    fileInput.accept = '.xlsx,.xls,.csv';
-}
+                        fileInput.accept = '.txt';
+                    } else if (spmType === 'MR' || spmType === 'VEL') {
+                        fileInput.accept = '.pdf';
+                    } else if (spmType === 'RTIS') {
+                        fileInput.accept = '.xlsx,.xls,.csv';
+                    } else if (spmType === 'TelproNew') { // YEH NAYA ADD HUA
+                        fileInput.accept = '.xlsx,.xls';
+                    } else {
+                        // Laxven, Telpro (old), aur default
+                        fileInput.accept = '.xlsx,.xls,.csv';
+                    }
+                    // NAYA LOGIC KHATAM
+
                     if (spmType) {
                         const scriptFile = `${spmType}.js`;
                         loadScript(scriptFile, () => {
