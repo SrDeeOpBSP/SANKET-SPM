@@ -1,7 +1,7 @@
 // googlesheet.js (Corrected: Original Data Send + New await Logic)
 
 async function sendDataToGoogleSheet(data) {
-    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxW6rSZx8XzLnKKhDu9SMx3vU9Fhm2pQRPrrrGawW4-QRMk8o9nQJExIBsCSRogUyK-/exec';
+    const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbxjGV2wkdd0JV1UZTLjLuwj75B4l4XanHNrM8t8vQiSaH_pwkdN_SgNHPoRCq4Q7OA3/exec';
 
     // --- START: ABNORMALITY DATA COLLECTION ---
     data.abnormality_bft_nd = document.getElementById('chk-bft-nd').checked ? 1 : 0;
