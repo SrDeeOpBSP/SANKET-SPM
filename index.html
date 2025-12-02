@@ -833,7 +833,6 @@ input:checked + .slider:before {
             <option value="ASHOK KUMAR">ASHOK KUMAR</option>
             <option value="ASHOK KUMAR MISHRA">ASHOK KUMAR MISHRA</option>
             <option value="B G RAHULAN">B G RAHULAN</option>
-            <option value="B BHARADWAJ">B BHARADWAJ</option>
             <option value="BHASKAR SAHOO">BHASKAR SAHOO</option>
             <option value="BHAWANAND GOPE">BHAWANAND GOPE</option>
             <option value="BHILU RAM TUDU">BHILU RAM TUDU</option>
@@ -944,7 +943,6 @@ input:checked + .slider:before {
             <option value="SUMANT KUMAR BAGHMAR">SUMANT KUMAR BAGHMAR</option>
             <option value="SUNIL KUMAR GUPTA">SUNIL KUMAR GUPTA</option>
             <option value="SURENDRA KUMAR PRETA DSL">SURENDRA KUMAR PRETA DSL</option>
-            <option value="SURESH KUMAR VERMA">SURESH KUMAR VERMA</option>
             <option value="SURESH CHANDRA">SURESH CHANDRA</option>
             <option value="SURESH CHANDRA SDL">SURESH CHANDRA SDL</option>
             <option value="SURESH SINGH CHAUHAN">SURESH SINGH CHAUHAN</option>
@@ -963,7 +961,10 @@ input:checked + .slider:before {
             <option value="VIVEK KUMAR">VIVEK KUMAR</option>
             <option value="YASHWANT KUMAR VERMA">YASHWANT KUMAR VERMA</option>
             <option value="YOGENDRA KUMAR">YOGENDRA KUMAR</option>  
-                        </select>
+            <option value="Other">Other</option>
+            </select>
+            <input type="text" id="txtOtherCliName" placeholder="Enter CLI Name" style="display: none; margin-top: 10px;" 
+
                     </div>
                     <div class="form-group">
                         <label for="fromDateTime">From Date and Time</label>
@@ -981,9 +982,9 @@ input:checked + .slider:before {
                         <label for="spmFile">Upload SPM File</label>
                         <input type="file" id="spmFile" name="spmFile" accept=".xlsx,.xls,.csv,.txt,.pdf" required>
                     </div>
+                    <button type="submit">ANALYZE THE SPM DATA</button>
                 </div>
             </div>
-            <button type="submit">ANALYZE THE SPM DATA</button>
         </form>
          <div class="about-us-toggle-container">
         <div class="about-us-icon" id="aboutUsToggle">i</div>
@@ -1400,6 +1401,22 @@ input:checked + .slider:before {
                 });
                 // --- END: Force Uppercase for Manual Entry ---
 
+                // --- NEW LOGIC: CLI NAME HANDLER MOVED INSIDE DOMContentLoaded ---
+                const cliNameSelect = document.getElementById('cliName');
+                if (cliNameSelect) {
+                    cliNameSelect.addEventListener('change', function() {
+                        const otherInput = document.getElementById('txtOtherCliName');
+                        if (this.value === 'Other') {
+                            otherInput.style.display = 'block';
+                            otherInput.required = true; // Make it mandatory
+                        } else {
+                            otherInput.style.display = 'none';
+                            otherInput.required = false;
+                            otherInput.value = ''; // Clear value
+                        }
+                    });
+                }
+                // --- END CLI NAME HANDLER ---
 
                 const spmTypeSelect = document.getElementById('spmType');
                 let currentScript = null;
@@ -1483,45 +1500,120 @@ input:checked + .slider:before {
 
                 document.getElementById('spmForm').addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    document.getElementById('loadingOverlay').style.display = 'flex';
 
+                    // --- 1. NEW LOGIC START: Custom CLI Handling ---
+                    const cliSelect = document.getElementById('cliName');
+                    let selectedCli = cliSelect.value;
+                    let isOtherCli = false;
+
+                    if (selectedCli === 'Other') {
+                        const customName = document.getElementById('txtOtherCliName').value.trim();
+                        if (!customName) {
+                            alert('Please enter the CLI Name.');
+                            return; // Stop execution
+                        }
+                        isOtherCli = true;
+                        localStorage.setItem('customCliName', customName);
+                        localStorage.setItem('isOtherCliMode', 'true');
+                    } else {
+                        localStorage.removeItem('customCliName');
+                        localStorage.setItem('isOtherCliMode', 'false');
+                    }
+                    // --- NEW LOGIC END ---
+
+                    // --- 2. Validations ---
                     const spmType = document.getElementById('spmType').value;
                     const spmFile = document.getElementById('spmFile').files[0];
                     const cugFile = document.getElementById('cugFile').files[0];
+
                     if (!spmType) {
                         alert('Please select an SPM Type.');
-                        document.getElementById('loadingOverlay').style.display = 'none';
                         return;
                     }
                     if (!spmFile) {
                         alert('Please upload an SPM file.');
-                        document.getElementById('loadingOverlay').style.display = 'none';
                         return;
                     }
                     const fileExt = spmFile.name.split('.').pop().toLowerCase();
 
-// Naya aur saaf validation logic (RTIS allows CSV)
-if (['Laxven', 'Telpro'].includes(spmType) && !['xlsx', 'xls'].includes(fileExt)) {
-    alert(`Please upload an Excel file (.xlsx or .xls) for ${spmType} SPM.`);
-    document.getElementById('loadingOverlay').style.display = 'none';
-    return;
-} else if (spmType === 'RTIS' && !['xlsx', 'xls', 'csv'].includes(fileExt)) {
-    alert('Please upload an Excel (.xlsx/.xls) or CSV (.csv) file for RTIS SPM.');
-    document.getElementById('loadingOverlay').style.display = 'none';
-    return;
-} else if (spmType === 'Medha' && fileExt !== 'txt') {
-    alert('Please upload a .txt file for Medha SPM.');
-    document.getElementById('loadingOverlay').style.display = 'none';
-    return;
-} else if ((spmType === 'MR' || spmType === 'VEL') && fileExt !== 'pdf') {
-    alert('Please upload a .pdf file for MR or VEL SPM.');
-    document.getElementById('loadingOverlay').style.display = 'none';
-    return;
-}
+                    // File Extension Validation
+                    if (['Laxven', 'Telpro'].includes(spmType) && !['xlsx', 'xls'].includes(fileExt)) {
+                        alert(`Please upload an Excel file (.xlsx or .xls) for ${spmType} SPM.`);
+                        return;
+                    } else if (spmType === 'RTIS' && !['xlsx', 'xls', 'csv'].includes(fileExt)) {
+                        alert('Please upload an Excel (.xlsx/.xls) or CSV (.csv) file for RTIS SPM.');
+                        return;
+                    } else if (spmType === 'Medha' && fileExt !== 'txt') {
+                        alert('Please upload a .txt file for Medha SPM.');
+                        return;
+                    } else if ((spmType === 'MR' || spmType === 'VEL') && fileExt !== 'pdf') {
+                        alert('Please upload a .pdf file for MR or VEL SPM.');
+                        return;
+                    } else if (spmType === 'TelproNew' && !['xlsx', 'xls'].includes(fileExt)) {
+                        alert(`Please upload an Excel file (.xlsx or .xls) for ${spmType} SPM.`);
+                        return;
+                    }
+
                     if (!currentScript) {
                         alert(`No script loaded for SPM Type: ${spmType}. Please select SPM Type first.`);
-                        document.getElementById('loadingOverlay').style.display = 'none';
                         return;
+                    }
+
+                    // --- 3. UPLOAD AND ANALYZE ---
+                    // Show Loading Overlay
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+
+                    try {
+                        // A. Attempt to upload/notify Google
+                        // (Note: uploadDataAndFileToGoogle is defined in googleApiHandler.js)
+                        console.log("Calling uploadDataAndFileToGoogle...");
+                        const uploadResult = await uploadDataAndFileToGoogle();
+                        
+                        console.log("Upload Result:", uploadResult);
+
+                        if (uploadResult.status === 'success') {
+                            showToast('File uploaded to Drive successfully.');
+                        } else if (uploadResult.status === 'skipped') {
+                            showToast('Drive Upload skipped (Other CLI mode). Processing locally...');
+                        }
+
+                        // B. START LOCAL ANALYSIS
+                        // IMPORTANT: You need to have the analysis logic here.
+                        // Assuming your loaded scripts (Laxven.js etc.) expose a function or
+                        // contain logic to handle the file reading.
+                        
+                        let cugData = [];
+                        if (cugFile) {
+                            cugData = await parseCugFile(cugFile);
+                        }
+
+                        // Check if the specific analysis function exists
+                        // Note: Replace 'analyzeSPMData' with your actual function name if different
+                        if (typeof analyzeSPMData === 'function') {
+                             await analyzeSPMData(spmFile, cugData); 
+                        } else if (typeof processLaxvenData === 'function' && spmType === 'Laxven') {
+                             await processLaxvenData(spmFile, cugData);
+                        } else if (typeof processMedhaData === 'function' && spmType === 'Medha') {
+                             await processMedhaData(spmFile, cugData);
+                        } else {
+                             // Fallback or Generic handler if your scripts just run on load
+                             // (Adjust this part based on how your individual scripts work)
+                             console.log("Looking for specific analysis function for: " + spmType);
+                             
+                             // Example: If your scripts attach to window.analyzeData
+                             if(window.analyzeData) {
+                                 await window.analyzeData(spmFile, cugData);
+                             } else {
+                                 // Temporary alert if integration is missing
+                                 console.warn("Analysis function not found. Ensure " + spmType + ".js exports a processing function.");
+                                 // You might need to manually trigger the logic from the loaded script here
+                             }
+                        }
+
+                    } catch (error) {
+                        console.error('Error during processing:', error);
+                        alert('An error occurred: ' + error.message);
+                        document.getElementById('loadingOverlay').style.display = 'none';
                     }
                 });
 
@@ -1531,6 +1623,7 @@ if (['Laxven', 'Telpro'].includes(spmType) && !['xlsx', 'xls'].includes(fileExt)
                 document.getElementById('loadingOverlay').style.display = 'none';
             }
         });
+
         // This script should be at the end of the body
         document.addEventListener('DOMContentLoaded', function() {
             const aboutUsToggle = document.getElementById('aboutUsToggle');
@@ -1575,12 +1668,10 @@ if (['Laxven', 'Telpro'].includes(spmType) && !['xlsx', 'xls'].includes(fileExt)
 
         // Aapka baaki ka Javascript code yahan se shuru hoga...
         window.toggleLoadingOverlay = function(show) {
-            // ...
+             document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
         };
     </script>
     <div id="toast-container"></div>
 </body>
 
-
 </html>
-

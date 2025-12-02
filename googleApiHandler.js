@@ -28,6 +28,15 @@ function fileToBase64(file) {
  */
 async function uploadDataAndFileToGoogle() {
     // 1. Gather all form data into a single object
+    // Check if 'Other' mode is active (based on DOM or LocalStorage)
+    const cliSelectValue = document.getElementById('cliName').value;
+    
+    // --- NEW LOGIC: SKIP UPLOAD IF OTHER ---
+    if (cliSelectValue === 'Other') {
+        console.log("CLI is 'Other'. Skipping Google Drive Upload.");
+        // Return a fake success object so the form thinks it worked
+        return { status: 'skipped', message: 'Skipped Drive Upload for Other CLI.' };
+    }
     const formData = {
         lpId: document.getElementById('lpId').value.trim(),
         lpName: document.getElementById('lpName').value.trim(),
