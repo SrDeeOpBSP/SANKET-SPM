@@ -800,7 +800,7 @@ function getStopDetails(data, stopCode, section, fromDist, stations, rakeType) {
 
         // Smoothing thresholds - adjust if needed
         const smooth = rakeType === 'GOODS'
-            ? (s1000 <= 30 && s800 <= 30 && s500 <= 25 && s100 <= 15 && s50 <= 10)
+            ? (s1000 <= 40 && s800 <= 40 && s500 <= 25 && s100 <= 15 && s50 <= 10)
             : (s1000 <= 60 && s800 <= 60 && s500 <= 45 && s100 <= 30 && s50 <= 20);
 
         stop.brakingTechnique = smooth ? 'Smooth' : 'Late';

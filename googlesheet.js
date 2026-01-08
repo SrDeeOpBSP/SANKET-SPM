@@ -1,11 +1,10 @@
-// googlesheet.js - Fully Updated with Dual Sheet Support
+// googlesheet.js - Updated for HQ-based Routing
 
 async function sendDataToGoogleSheet(data) {
-    // 1. Primary Apps Script URL (Main Sheet)
+    // 1. Primary Apps Script URL (Main Sheet - SPM ANALYSIS BANK)
     const primaryAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbxjGV2wkdd0JV1UZTLjLuwj75B4l4XanHNrM8t8vQiSaH_pwkdN_SgNHPoRCq4Q7OA3/exec';
 
-    // 2. Secondary Apps Script URL (Other/New Sheet)
-    // 👇👇👇 IMPORTANT: Paste your NEW Web App URL below inside the quotes 👇👇👇
+    // 2. Secondary Apps Script URL (Other Sheet - OTHER DIVISION)
     const otherAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbyE7iCeO3YByhz8mOr1jwSlngk88PMbSkJBybp7bfXlZGQdYJsZ3qsBDuEMdygd8JqK/exec'; 
 
     // --- START: ABNORMALITY DATA COLLECTION ---
@@ -28,10 +27,8 @@ async function sendDataToGoogleSheet(data) {
 
     data.abnormality = abnormalityStrings.join('; \n') || 'NIL'; 
     
-    // Ensure the hidden textarea is updated so PDF picks it up correctly (if used separately)
     const cliAbnormalitiesArea = document.getElementById('cliAbnormalities');
     if(cliAbnormalitiesArea) cliAbnormalitiesArea.value = data.abnormality;
-
     // --- END: ABNORMALITY DATA COLLECTION ---
 
     // Collect Remarks and Action Taken
@@ -54,34 +51,40 @@ async function sendDataToGoogleSheet(data) {
         });
     }
     
-    // Clean heavy data before sending to Sheet (images/configs not needed in Sheet)
+    // Clean heavy data
     delete data.speedChartConfig;
     delete data.stopChartConfig;
     delete data.speedChartImage;
     delete data.stopChartImage;
 
-    // --- CHECK FOR "OTHER" CLI MODE ---
-    const isOtherMode = localStorage.getItem('isOtherCliMode') === 'true';
-    const customName = localStorage.getItem('customCliName');
+    // --- NEW LOGIC: HQ BASED ROUTING ---
+    const ALLOWED_HQS = ['AKT', 'BJRI', 'BRJN', 'BSP', 'KHS', 'KRBA', 'PND', 'RIG', 'SDL', 'SJQ', 'USL'];
+    
+    // Try to get HQ from data object, or fallback to DOM if available
+    let currentHq = '';
+    if (data.cliHq) {
+        currentHq = data.cliHq;
+    } else if (document.getElementById('cliHqDisplay')) {
+        currentHq = document.getElementById('cliHqDisplay').value;
+    }
+    
+    currentHq = currentHq.trim().toUpperCase();
 
-    let targetUrl = primaryAppsScriptUrl; // Default to Primary
+    let targetUrl = primaryAppsScriptUrl; // Default to Main Sheet
 
-    if (isOtherMode && customName) {
-      // Sirf yeh check karein ki URL khali toh nahi hai
-if (!otherAppsScriptUrl || otherAppsScriptUrl.trim() === '') {
-    alert("Configuration Error: Secondary Google Sheet URL is missing inside 'googlesheet.js'.");
-    throw new Error("Secondary URL missing");
-}
+    // Agar HQ allowed list mein NAHI hai, toh Other Sheet use karo
+    if (!ALLOWED_HQS.includes(currentHq)) {
+        if (!otherAppsScriptUrl || otherAppsScriptUrl.trim() === '') {
+            alert("Configuration Error: Secondary Google Sheet URL is missing.");
+            throw new Error("Secondary URL missing");
+        }
         targetUrl = otherAppsScriptUrl;
-        
-        // Override the CLI Name in data payload
-        data.cliName = customName;
-        console.log(`Switching to Secondary Sheet for CLI: ${customName}`);
+        console.log(`HQ is ${currentHq} (Not in BSP Division list). Routing to OTHER DIVISION Sheet.`);
     } else {
-        console.log("Using Primary Sheet.");
+        console.log(`HQ is ${currentHq} (BSP Division). Routing to SPM ANALYSIS BANK Sheet.`);
     }
 
-    console.log("Sending data to:", targetUrl);
+    console.log("Sending data to URL:", targetUrl);
 
     // --- SEND DATA ---
     try {
@@ -167,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 try {
-                    // 1. Send data to Google Sheet (Primary or Secondary based on logic)
+                    // 1. Send data to Google Sheet (Routed based on HQ)
                     await sendDataToGoogleSheet(reportData);
                     console.log("Data sending initiated.");
 
@@ -208,5 +211,5 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(loadingOverlay) loadingOverlay.style.display = 'none';
             }
         }); 
-    } 
+    }
 });

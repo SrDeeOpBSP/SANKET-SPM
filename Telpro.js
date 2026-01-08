@@ -825,7 +825,7 @@ const speed50m  = parsedSpeeds[4]; // 50m speed
     if (rakeType === 'COACHING' || rakeType === 'MEMU') {
         isSmooth = speed800m <= 60 && speed500m <= 45 && speed100m <= 30 && speed50m <= 20;
     } else if (rakeType === 'GOODS') {
-        isSmooth = speed800m <= 30 && speed500m <= 25 && speed100m <= 15 && speed50m <= 10;
+        isSmooth = speed800m <= 40 && speed500m <= 25 && speed100m <= 15 && speed50m <= 10;
     } else {
         isSmooth = speed800m <= 60 && speed500m <= 30 && speed100m <= 20 && speed50m <= 20;
     }
