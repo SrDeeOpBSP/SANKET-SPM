@@ -1,4 +1,4 @@
-// googlesheet.js - Updated for HQ-based Routing
+// googlesheet.js - Fixed: Reads HQ from LocalStorage
 
 async function sendDataToGoogleSheet(data) {
     // 1. Primary Apps Script URL (Main Sheet - SPM ANALYSIS BANK)
@@ -7,41 +7,41 @@ async function sendDataToGoogleSheet(data) {
     // 2. Secondary Apps Script URL (Other Sheet - OTHER DIVISION)
     const otherAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbyE7iCeO3YByhz8mOr1jwSlngk88PMbSkJBybp7bfXlZGQdYJsZ3qsBDuEMdygd8JqK/exec'; 
 
-    // --- START: ABNORMALITY DATA COLLECTION ---
-    data.abnormality_bft_nd = document.getElementById('chk-bft-nd').checked ? 1 : 0;
-    data.abnormality_bpt_nd = document.getElementById('chk-bpt-nd').checked ? 1 : 0;
-    data.abnormality_bft_rule = document.getElementById('chk-bft-rule').checked ? 1 : 0;
-    data.abnormality_bpt_rule = document.getElementById('chk-bpt-rule').checked ? 1 : 0;
-    data.abnormality_late_ctrl = document.getElementById('chk-late-ctrl').checked ? 1 : 0;
-    data.abnormality_overspeed = document.getElementById('chk-overspeed').checked ? 1 : 0;
-    data.abnormality_others = document.getElementById('chk-others').checked ? 1 : 0;
+    // --- ALLOWED HQ LIST ---
+    const ALLOWED_HQS = ['AKT', 'BJRI', 'BRJN', 'BSP', 'KHS', 'KRBA', 'PND', 'RIG', 'SDL', 'SJQ', 'USL'];
+
+    // --- START: DATA COLLECTION ---
+    data.abnormality_bft_nd = document.getElementById('chk-bft-nd')?.checked ? 1 : 0;
+    data.abnormality_bpt_nd = document.getElementById('chk-bpt-nd')?.checked ? 1 : 0;
+    data.abnormality_bft_rule = document.getElementById('chk-bft-rule')?.checked ? 1 : 0;
+    data.abnormality_bpt_rule = document.getElementById('chk-bpt-rule')?.checked ? 1 : 0;
+    data.abnormality_late_ctrl = document.getElementById('chk-late-ctrl')?.checked ? 1 : 0;
+    data.abnormality_overspeed = document.getElementById('chk-overspeed')?.checked ? 1 : 0;
+    data.abnormality_others = document.getElementById('chk-others')?.checked ? 1 : 0;
 
     const abnormalityStrings = [];
-    if (data.abnormality_bft_nd === 1) abnormalityStrings.push("BFT not done");
-    if (data.abnormality_bpt_nd === 1) abnormalityStrings.push("BPT not done");
-    if (data.abnormality_bft_rule === 1) abnormalityStrings.push(`BFT not done as per rule:- ${document.getElementById('txt-bft-rule').value.trim()}`);
-    if (data.abnormality_bpt_rule === 1) abnormalityStrings.push(`BPT not done as per rule:- ${document.getElementById('txt-bpt-rule').value.trim()}`);
-    if (data.abnormality_late_ctrl === 1) abnormalityStrings.push(`Late Controlling:- ${document.getElementById('txt-late-ctrl').value.trim()}`);
-    if (data.abnormality_overspeed === 1) abnormalityStrings.push(`Over speeding:- ${document.getElementById('txt-overspeed').value.trim()}`);
-    if (data.abnormality_others === 1) abnormalityStrings.push(`Other Abnormalities:- ${document.getElementById('txt-others').value.trim()}`);
+    if (data.abnormality_bft_nd) abnormalityStrings.push("BFT not done");
+    if (data.abnormality_bpt_nd) abnormalityStrings.push("BPT not done");
+    if (data.abnormality_bft_rule) abnormalityStrings.push(`BFT not done as per rule:- ${document.getElementById('txt-bft-rule')?.value.trim()}`);
+    if (data.abnormality_bpt_rule) abnormalityStrings.push(`BPT not done as per rule:- ${document.getElementById('txt-bpt-rule')?.value.trim()}`);
+    if (data.abnormality_late_ctrl) abnormalityStrings.push(`Late Controlling:- ${document.getElementById('txt-late-ctrl')?.value.trim()}`);
+    if (data.abnormality_overspeed) abnormalityStrings.push(`Over speeding:- ${document.getElementById('txt-overspeed')?.value.trim()}`);
+    if (data.abnormality_others) abnormalityStrings.push(`Other Abnormalities:- ${document.getElementById('txt-others')?.value.trim()}`);
 
     data.abnormality = abnormalityStrings.join('; \n') || 'NIL'; 
     
     const cliAbnormalitiesArea = document.getElementById('cliAbnormalities');
     if(cliAbnormalitiesArea) cliAbnormalitiesArea.value = data.abnormality;
-    // --- END: ABNORMALITY DATA COLLECTION ---
 
-    // Collect Remarks and Action Taken
-    data.cliObservation = document.getElementById('cliRemarks').value.trim() || 'NIL';
-    data.totalAbnormality = document.getElementById('totalAbnormality').value.trim() || '0';
+    data.cliObservation = document.getElementById('cliRemarks')?.value.trim() || 'NIL';
+    data.totalAbnormality = document.getElementById('totalAbnormality')?.value.trim() || '0';
     
     const selectedActionRadio = document.querySelector('input[name="actionTakenRadio"]:checked');
     data.actionTaken = selectedActionRadio ? selectedActionRadio.value : 'NIL';
 
-    data.bftRemark = document.getElementById('bftRemark').value.trim() || 'NA';
-    data.bptRemark = document.getElementById('bptRemark').value.trim() || 'NA';
+    data.bftRemark = document.getElementById('bftRemark')?.value.trim() || 'NA';
+    data.bptRemark = document.getElementById('bptRemark')?.value.trim() || 'NA';
 
-    // Collect Stop Analysis Details
     if (data.stops && Array.isArray(data.stops)) {
         data.stops.forEach((stop, index) => {
             const systemAnalysisSelect = document.querySelector(`.system-analysis-dropdown[data-stop-index="${index}"]`);
@@ -51,40 +51,40 @@ async function sendDataToGoogleSheet(data) {
         });
     }
     
-    // Clean heavy data
     delete data.speedChartConfig;
     delete data.stopChartConfig;
     delete data.speedChartImage;
     delete data.stopChartImage;
 
-    // --- NEW LOGIC: HQ BASED ROUTING ---
-    const ALLOWED_HQS = ['AKT', 'BJRI', 'BRJN', 'BSP', 'KHS', 'KRBA', 'PND', 'RIG', 'SDL', 'SJQ', 'USL'];
+    // --- CRITICAL FIX: READ HQ FROM STORAGE ---
     
-    // Try to get HQ from data object, or fallback to DOM if available
-    let currentHq = '';
-    if (data.cliHq) {
-        currentHq = data.cliHq;
-    } else if (document.getElementById('cliHqDisplay')) {
-        currentHq = document.getElementById('cliHqDisplay').value;
+    // 1. Try LocalStorage (Saved during Submit)
+    let storedHq = localStorage.getItem('currentSessionHq');
+    
+    // 2. Try DOM (If still visible)
+    if (!storedHq && document.getElementById('cliHqDisplay')) {
+        storedHq = document.getElementById('cliHqDisplay').value;
     }
+
+    // 3. Normalize
+    let currentHq = storedHq ? storedHq.toString().trim().toUpperCase() : "UNKNOWN";
     
-    currentHq = currentHq.trim().toUpperCase();
+    // Update data payload
+    data.cliHq = currentHq;
 
-    let targetUrl = primaryAppsScriptUrl; // Default to Main Sheet
+    // Debugging
+    console.log(`Final HQ for Routing: [${currentHq}]`);
 
-    // Agar HQ allowed list mein NAHI hai, toh Other Sheet use karo
-    if (!ALLOWED_HQS.includes(currentHq)) {
-        if (!otherAppsScriptUrl || otherAppsScriptUrl.trim() === '') {
-            alert("Configuration Error: Secondary Google Sheet URL is missing.");
-            throw new Error("Secondary URL missing");
-        }
-        targetUrl = otherAppsScriptUrl;
-        console.log(`HQ is ${currentHq} (Not in BSP Division list). Routing to OTHER DIVISION Sheet.`);
+    let targetUrl = primaryAppsScriptUrl;
+
+    // 4. CHECK LOGIC
+    if (ALLOWED_HQS.includes(currentHq)) {
+        console.log(`MATCH: Sending to PRIMARY Sheet.`);
+        targetUrl = primaryAppsScriptUrl;
     } else {
-        console.log(`HQ is ${currentHq} (BSP Division). Routing to SPM ANALYSIS BANK Sheet.`);
+        console.log(`NO MATCH: Sending to OTHER DIVISION Sheet.`);
+        targetUrl = otherAppsScriptUrl;
     }
-
-    console.log("Sending data to URL:", targetUrl);
 
     // --- SEND DATA ---
     try {
@@ -97,63 +97,47 @@ async function sendDataToGoogleSheet(data) {
             body: JSON.stringify(data)
         });
 
-        console.log('Data sent successfully (no-cors mode).');
+        console.log('Data sent successfully.');
 
     } catch (error) {
         console.error('Error sending data to Google Sheet:', error);
-        alert('There was a network error while sending the data. Please check your connection.');
+        alert('Network Error. Data could not be sent.');
         throw error; 
     }
 }
 
-// --- Event Listener for Download Button ---
+// --- Event Listener ---
 document.addEventListener('DOMContentLoaded', () => {
     const downloadButton = document.getElementById('downloadReport');
     const loadingOverlay = document.getElementById('loadingOverlay');
 
     if (downloadButton) {
         downloadButton.addEventListener('click', async () => { 
-            console.log("Download button clicked.");
-
-            // --- VALIDATION START ---
             let isValid = true;
             let firstInvalidElement = null;
 
-            // 1. Check Abnormality Remarks
             document.querySelectorAll('#abnormalities-checkbox-container input[type="checkbox"]:checked').forEach(chk => {
                 const textId = chk.dataset.textId;
                 if (textId) {
                     const textField = document.getElementById(textId);
                     if (!textField || !textField.value.trim()) {
-                        const labelText = chk.closest('label')?.textContent.trim() || 'the selected abnormality';
-                        alert(`Please enter a remark for "${labelText}".`);
+                        alert(`Please enter a remark for the selected abnormality.`);
                         if (textField && !firstInvalidElement) firstInvalidElement = textField;
                         isValid = false;
                     }
                 }
             });
-            if (!isValid) {
-                if(firstInvalidElement) firstInvalidElement.focus();
-                return;
-            }
-
-             // 2. Check Action Taken
-             const actionSelected = document.querySelector('input[name="actionTakenRadio"]:checked');
-             if (!actionSelected) {
+            
+            const actionSelected = document.querySelector('input[name="actionTakenRadio"]:checked');
+            if (!actionSelected) {
                  alert('Please select an option for "Action Taken".');
-                 const firstRadio = document.getElementById('actionIntensive');
-                 if(firstRadio && !firstInvalidElement) firstInvalidElement = firstRadio;
                  isValid = false;
-             }
-            if (!isValid) {
-                if(firstInvalidElement) firstInvalidElement.focus();
-                return;
             }
-            // --- VALIDATION END ---
 
-            // --- PROCESS START ---
+            if (!isValid) return;
+
             downloadButton.disabled = true;
-            downloadButton.textContent = 'Processing... Please Wait...';
+            downloadButton.textContent = 'Processing...';
             if(loadingOverlay) loadingOverlay.style.display = 'flex';
 
             const reportDataString = localStorage.getItem('spmReportData');
@@ -162,52 +146,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                      reportData = JSON.parse(reportDataString);
                 } catch(e) {
-                     alert("Error retrieving report data. Please go back and try again.");
-                     downloadButton.disabled = false;
-                     downloadButton.textContent = 'Download Report';
+                     alert("Error retrieving data. Refresh page.");
                      if(loadingOverlay) loadingOverlay.style.display = 'none';
                      return;
                 }
 
                 try {
-                    // 1. Send data to Google Sheet (Routed based on HQ)
                     await sendDataToGoogleSheet(reportData);
-                    console.log("Data sending initiated.");
-
-                    // 2. Generate the PDF AND WAIT
+                    
                     if (typeof generatePDF === 'function') {
-                        console.log("Calling generatePDF...");
                         await generatePDF(); 
-                        console.log("generatePDF process finished.");
+                        alert('Data submitted and report generated. Redirecting...');
                         
-                        // 3. Inform user and redirect AFTER PDF
-                        alert('Data submitted and report generated. You will now be redirected.');
-                        
-                        // Clean up
                         localStorage.removeItem('spmReportData');
+                        localStorage.removeItem('currentSessionHq'); // Clean up HQ
                         localStorage.removeItem('isOtherCliMode');
                         localStorage.removeItem('customCliName');
-                        
                         window.location.href = 'index.html'; 
-
                     } else {
-                        console.error('generatePDF function is not defined.');
-                        alert('Error: PDF generation function not found. Data might have been submitted.');
-                        downloadButton.disabled = false;
-                        downloadButton.textContent = 'Download Failed - Retry?';
-                        if(loadingOverlay) loadingOverlay.style.display = 'none';
+                        alert('PDF function missing.');
                     }
                 } catch (error) { 
-                    console.error("Error during process:", error);
-                    alert("An error occurred during submission. Please check console.");
+                    console.error("Error:", error);
+                    alert("Error during submission.");
                     downloadButton.disabled = false;
-                    downloadButton.textContent = 'Download Report';
                     if(loadingOverlay) loadingOverlay.style.display = 'none';
                 }
             } else {
-                alert('Error: Report data not found. Please go back and try again.');
-                downloadButton.disabled = false;
-                downloadButton.textContent = 'Download Report';
+                alert('No report data found.');
                 if(loadingOverlay) loadingOverlay.style.display = 'none';
             }
         }); 

@@ -1421,8 +1421,15 @@ input:checked + .slider:before {
             };
 
             document.getElementById('spmForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
+    e.preventDefault();
 
+    // --- YEH LINE ADD KAREIN (HQ ko save karne ke liye) ---
+    const hqValueToSave = document.getElementById('cliHqDisplay').value.trim();
+    localStorage.setItem('currentSessionHq', hqValueToSave);
+    console.log("HQ Saved for Session:", hqValueToSave);
+    // -----------------------------------------------------
+
+    // ... baaki purana code waisa hi rahega ...
                 // --- NEW: Submit Validation for CLI ID ---
                 const cliIdVal = document.getElementById('cliIdInput').value;
                 if(!cliIdVal) {
