@@ -24,7 +24,7 @@ function fileToBase64(file) {
  */
 async function uploadDataAndFileToGoogle() {
     // --- 1. DEFINE ALLOWED HQS ---
-    const ALLOWED_HQS = ['AKT', 'BJRI', 'BRJN', 'BSP', 'KHS', 'KRBA', 'PND', 'RIG', 'SDL', 'SJQ', 'USL'];
+    const ALLOWED_HQS = ['AKT', 'BJRI', 'BRJN', 'BSP', 'KHS', 'KRBA', 'PND', 'RIG', 'SDL', 'SJQ', 'USL', 'CPH', 'APR'];
 
     // Get Current HQ from the readonly field
     // Agar field khali hai ya exist nahi karta, toh empty string manenge
