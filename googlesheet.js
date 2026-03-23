@@ -8,7 +8,7 @@ async function sendDataToGoogleSheet(data) {
     const otherAppsScriptUrl = 'https://script.google.com/macros/s/AKfycbyE7iCeO3YByhz8mOr1jwSlngk88PMbSkJBybp7bfXlZGQdYJsZ3qsBDuEMdygd8JqK/exec'; 
 
     // --- ALLOWED HQ LIST ---
-    const ALLOWED_HQS = ['AKT', 'BJRI', 'BRJN', 'BSP', 'KHS', 'KRBA', 'PND', 'RIG', 'SDL', 'SJQ', 'USL'];
+    const ALLOWED_HQS = ['AKT', 'BJRI', 'BRJN', 'BSP', 'KHS', 'KRBA', 'PND', 'RIG', 'SDL', 'SJQ', 'USL', 'CPH', 'APR'];
 
     // --- START: DATA COLLECTION ---
     data.abnormality_bft_nd = document.getElementById('chk-bft-nd')?.checked ? 1 : 0;
